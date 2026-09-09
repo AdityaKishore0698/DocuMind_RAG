@@ -1,0 +1,74 @@
+# Render Blueprint — Hybrid Cloud deployment for the DocuMind Python backend.
+#
+#   frontend/  -> Vercel (deployed separately)
+#   api/       -> this file, "documind-api" (Render Web Service, Docker)
+#   worker/    -> this file, "documind-worker" (Render Background Worker, Docker)
+#   Postgres   -> Supabase (managed, pgvector)      -> DATABASE_URL
+#   Redis      -> Upstash (managed, serverless)     -> REDIS_URL
+#
+# Apply:  Render Dashboard -> New -> Blueprint -> pick this repo.
+# Then set every `sync: false` value in the dashboard (they are secrets).
+#
+# NOTES / CAVEATS
+#  * Render Background Workers require a paid instance type (Starter, ~$7/mo).
+#    `plan: free` is declared here to match intent; if Blueprint apply rejects
+#    the free worker, either bump `documind-worker` to `plan: starter` or run
+#    the worker on a platform whose free tier allows long-running processes
+#    (e.g. Koyeb or Fly.io) using worker/Dockerfile.
+#  * Free Web Services sleep after ~15 min idle and cold-start in ~1 min.
+#  * api/ and worker/ are separate containers and do NOT share a filesystem.
+#    The current upload flow hands off files via the local `/shared` volume —
+#    that must move to object storage (e.g. Supabase Storage) for this topology.
+#  * If `runtime: docker` is not recognized by your Render account, use the
+#    older key `env: docker`.
+
+envVarGroups:
+  - name: documind-shared
+    envVars:
+      # Supabase Postgres + pgvector. Use the connection-pooler URI (port 6543).
+      - key: DATABASE_URL
+        sync: false
+      # Upstash Redis (rediss://...) — Celery broker + result backend.
+      - key: REDIS_URL
+        sync: false
+      # Supabase Storage — document files (bucket "documents"). Used by API + Worker.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-2
+
+services:
+  # ─── FastAPI web service ───────────────────────────────────────────────────
+  - type: web
+    name: documind-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - fromGroup: documind-shared
+      - key: CHAT_MODEL
+        value: gemini-3.6-flash
+      # Comma-separated allowed origins — set to your Vercel frontend URL.
+      # (Auth tokens are verified against Supabase; no signing key needed here.)
+      - key: FRONTEND_ORIGINS
+        sync: false
+
+  # ─── Celery background worker ──────────────────────────────────────────────
+  - type: worker
+    name: documind-worker
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./worker/Dockerfile
+    dockerContext: ./worker
+    autoDeploy: true
+    envVars:
+      - fromGroup: documind-shared

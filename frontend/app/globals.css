@@ -1,0 +1,306 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Material 3 design tokens — the single source of truth for colour, elevation,
+   motion, and type. Light values on bare :root; only the colour roles are
+   redefined for dark. Every text/background pair is >= 4.5:1 (>= 3:1 for large
+   text and UI components) per WCAG 2.2 AA.
+   ========================================================================== */
+
+:root {
+  /* --- colour roles (light) --- */
+  --md-primary: #4f46e5;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #e0e0ff;
+  --md-on-primary-container: #1a1a5e;
+
+  --md-secondary: #5b5d72;
+  --md-secondary-container: #e2e0f9;
+  --md-on-secondary-container: #191a2c;
+
+  --md-surface: #fcfbff;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f6f4fc;
+  --md-surface-container: #f0eef7;
+  --md-surface-container-high: #eae7f2;
+  --md-surface-container-highest: #e4e1ec;
+  --md-surface-variant: #e4e1ec;
+
+  --md-on-surface: #1b1b21;
+  --md-on-surface-variant: #46464f;
+
+  --md-outline: #767680;
+  --md-outline-variant: #c7c5d0;
+
+  --md-error: #ba1a1a;
+  --md-on-error: #ffffff;
+  --md-error-container: #ffdad6;
+  --md-on-error-container: #410002;
+
+  --md-success: #2e6b4f;
+  --md-warning: #8a5300;
+
+  --md-scrim: rgb(0 0 0 / 0.32);
+
+  /* --- elevation --- */
+  --md-elev-0: none;
+  --md-elev-1: 0 1px 2px rgb(0 0 0 / 0.28), 0 1px 3px 1px rgb(0 0 0 / 0.12);
+  --md-elev-2: 0 1px 2px rgb(0 0 0 / 0.28), 0 2px 6px 2px rgb(0 0 0 / 0.12);
+  --md-elev-3: 0 1px 3px rgb(0 0 0 / 0.28), 0 4px 8px 3px rgb(0 0 0 / 0.12);
+  --md-elev-4: 0 2px 3px rgb(0 0 0 / 0.28), 0 6px 10px 4px rgb(0 0 0 / 0.12);
+  --md-elev-5: 0 4px 4px rgb(0 0 0 / 0.28), 0 8px 12px 6px rgb(0 0 0 / 0.12);
+
+  /* --- motion --- */
+  --md-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-ease-accel: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --md-dur-short: 150ms;
+  --md-dur-medium: 250ms;
+  --md-dur-long: 400ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --md-primary: #c0c1ff;
+    --md-on-primary: #22228a;
+    --md-primary-container: #3a3aa5;
+    --md-on-primary-container: #e0e0ff;
+
+    --md-secondary: #c4c5dd;
+    --md-secondary-container: #434559;
+    --md-on-secondary-container: #e1e0f9;
+
+    --md-surface: #131318;
+    --md-surface-container-lowest: #0d0d12;
+    --md-surface-container-low: #1b1b21;
+    --md-surface-container: #1f1f25;
+    --md-surface-container-high: #292930;
+    --md-surface-container-highest: #34343b;
+    --md-surface-variant: #46464f;
+
+    --md-on-surface: #e4e1e9;
+    --md-on-surface-variant: #c7c5d0;
+
+    --md-outline: #90909a;
+    --md-outline-variant: #46464f;
+
+    --md-error: #ffb4ab;
+    --md-on-error: #690005;
+    --md-error-container: #93000a;
+    --md-on-error-container: #ffdad6;
+
+    --md-success: #7cd6a6;
+    --md-warning: #f4bd6b;
+
+    --md-scrim: rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --md-primary: #c0c1ff;
+  --md-on-primary: #22228a;
+  --md-primary-container: #3a3aa5;
+  --md-on-primary-container: #e0e0ff;
+
+  --md-secondary: #c4c5dd;
+  --md-secondary-container: #434559;
+  --md-on-secondary-container: #e1e0f9;
+
+  --md-surface: #131318;
+  --md-surface-container-lowest: #0d0d12;
+  --md-surface-container-low: #1b1b21;
+  --md-surface-container: #1f1f25;
+  --md-surface-container-high: #292930;
+  --md-surface-container-highest: #34343b;
+  --md-surface-variant: #46464f;
+
+  --md-on-surface: #e4e1e9;
+  --md-on-surface-variant: #c7c5d0;
+
+  --md-outline: #90909a;
+  --md-outline-variant: #46464f;
+
+  --md-error: #ffb4ab;
+  --md-on-error: #690005;
+  --md-error-container: #93000a;
+  --md-on-error-container: #ffdad6;
+
+  --md-success: #7cd6a6;
+  --md-warning: #f4bd6b;
+
+  --md-scrim: rgb(0 0 0 / 0.5);
+}
+
+/* ---- Tailwind theme: expose M3 roles as utilities (bg-md-primary, text-md-on-surface, ...) ---- */
+@theme inline {
+  --color-md-primary: var(--md-primary);
+  --color-md-on-primary: var(--md-on-primary);
+  --color-md-primary-container: var(--md-primary-container);
+  --color-md-on-primary-container: var(--md-on-primary-container);
+  --color-md-secondary: var(--md-secondary);
+  --color-md-secondary-container: var(--md-secondary-container);
+  --color-md-on-secondary-container: var(--md-on-secondary-container);
+  --color-md-surface: var(--md-surface);
+  --color-md-surface-container-lowest: var(--md-surface-container-lowest);
+  --color-md-surface-container-low: var(--md-surface-container-low);
+  --color-md-surface-container: var(--md-surface-container);
+  --color-md-surface-container-high: var(--md-surface-container-high);
+  --color-md-surface-container-highest: var(--md-surface-container-highest);
+  --color-md-surface-variant: var(--md-surface-variant);
+  --color-md-on-surface: var(--md-on-surface);
+  --color-md-on-surface-variant: var(--md-on-surface-variant);
+  --color-md-outline: var(--md-outline);
+  --color-md-outline-variant: var(--md-outline-variant);
+  --color-md-error: var(--md-error);
+  --color-md-on-error: var(--md-on-error);
+  --color-md-error-container: var(--md-error-container);
+  --color-md-on-error-container: var(--md-on-error-container);
+  --color-md-success: var(--md-success);
+  --color-md-warning: var(--md-warning);
+
+  --font-sans: var(--font-roboto-flex), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* ============================================================================
+   Base
+   ========================================================================== */
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================================
+   Type scale (Material 3 / Roboto)
+   ========================================================================== */
+.t-display-l { font-size: 3.5625rem; line-height: 4rem; font-weight: 400; letter-spacing: -0.015em; }
+.t-display-m { font-size: 2.8125rem; line-height: 3.25rem; font-weight: 400; }
+.t-display-s { font-size: 2.25rem; line-height: 2.75rem; font-weight: 400; }
+.t-headline-l { font-size: 2rem; line-height: 2.5rem; font-weight: 500; letter-spacing: -0.01em; }
+.t-headline-m { font-size: 1.75rem; line-height: 2.25rem; font-weight: 500; letter-spacing: -0.01em; }
+.t-headline-s { font-size: 1.5rem; line-height: 2rem; font-weight: 500; }
+.t-title-l { font-size: 1.375rem; line-height: 1.75rem; font-weight: 500; }
+.t-title-m { font-size: 1rem; line-height: 1.5rem; font-weight: 500; letter-spacing: 0.009em; }
+.t-title-s { font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; letter-spacing: 0.006em; }
+.t-body-l { font-size: 1rem; line-height: 1.5rem; font-weight: 400; }
+.t-body-m { font-size: 0.875rem; line-height: 1.25rem; font-weight: 400; letter-spacing: 0.015em; }
+.t-body-s { font-size: 0.75rem; line-height: 1rem; font-weight: 400; letter-spacing: 0.03em; }
+.t-label-l { font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; letter-spacing: 0.006em; }
+.t-label-m { font-size: 0.75rem; line-height: 1rem; font-weight: 500; letter-spacing: 0.04em; }
+.t-label-s { font-size: 0.6875rem; line-height: 1rem; font-weight: 500; letter-spacing: 0.04em; }
+
+/* ============================================================================
+   Small utilities
+   ========================================================================== */
+.elev-1 { box-shadow: var(--md-elev-1); }
+.elev-2 { box-shadow: var(--md-elev-2); }
+.elev-3 { box-shadow: var(--md-elev-3); }
+.elev-4 { box-shadow: var(--md-elev-4); }
+.elev-5 { box-shadow: var(--md-elev-5); }
+
+/* state layer for interactive M3 surfaces: <el class="state">  */
+.state { position: relative; isolation: isolate; }
+.state::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--md-dur-short) var(--md-ease-standard);
+  pointer-events: none;
+}
+.state:hover::after { opacity: 0.08; }
+.state:focus-visible::after { opacity: 0.1; }
+.state:active::after { opacity: 0.12; }
+
+:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-outline-variant) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--md-outline-variant);
+  border-radius: 9999px;
+}
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+.animate-blink { animation: blink 1s step-start infinite; }
+
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================================================
+   Markdown (assistant chat bubbles) — re-skinned to M3 tokens
+   ========================================================================== */
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p { margin: 0.5rem 0; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
+  margin: 0.9rem 0 0.4rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.markdown h1 { font-size: 1.15rem; }
+.markdown h2 { font-size: 1.08rem; }
+.markdown h3 { font-size: 1rem; }
+.markdown h4 { font-size: 0.95rem; }
+.markdown ul, .markdown ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+.markdown ul { list-style: disc; }
+.markdown ol { list-style: decimal; }
+.markdown li { margin: 0.2rem 0; }
+.markdown a { color: var(--md-primary); text-decoration: underline; text-underline-offset: 2px; }
+.markdown strong { font-weight: 600; }
+.markdown em { font-style: italic; }
+.markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--md-surface-container-highest);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.markdown pre {
+  margin: 0.6rem 0;
+  padding: 0.75rem 0.9rem;
+  background: var(--md-surface-container-highest);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.markdown pre code { background: transparent; padding: 0; font-size: 0.82em; }
+.markdown blockquote {
+  margin: 0.6rem 0;
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--md-outline-variant);
+  color: var(--md-on-surface-variant);
+}
+.markdown hr { margin: 0.9rem 0; border: none; border-top: 1px solid var(--md-outline-variant); }
+.markdown table { display: block; margin: 0.6rem 0; border-collapse: collapse; overflow-x: auto; font-size: 0.9em; }
+.markdown th, .markdown td { border: 1px solid var(--md-outline-variant); text-align: left; padding: 0.35rem 0.6rem; }
+.markdown th { background: var(--md-surface-container-highest); font-weight: 600; }
+
+/* ============================================================================
+   Reduced motion
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

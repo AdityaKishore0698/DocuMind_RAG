@@ -1,0 +1,28 @@
+# Consolidated runtime dependencies for the unified (API + Worker) container.
+# Union of api/requirements.txt and worker/requirements.txt, runtime-only
+# (test-only packages such as pytest/httpx are intentionally excluded).
+
+# Web / API
+fastapi
+uvicorn
+python-multipart
+
+# Task queue
+celery
+redis
+
+# Database + pgvector
+sqlalchemy
+psycopg2-binary
+pgvector
+
+# Cloud services
+supabase
+google-genai
+
+# Auth — verify Supabase Auth access tokens
+pyjwt[cryptography]
+
+# Document processing
+PyPDF2
+langchain-text-splitters

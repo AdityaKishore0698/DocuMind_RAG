@@ -1,0 +1,46 @@
+version: '3.8'
+
+# Self-hosted production stack (single host). Stateful services are managed:
+# DATABASE_URL -> Supabase Postgres + pgvector, REDIS_URL -> Upstash Redis.
+# For the Vercel + Render/Koyeb hybrid deployment, see render.yaml instead.
+
+services:
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    volumes:
+      - shared_data:/shared
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - CHAT_MODEL=${CHAT_MODEL:-gemini-3.6-flash}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini-embedding-2}
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS}
+
+  worker:
+    build: ./worker
+    volumes:
+      - shared_data:/shared
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini-embedding-2}
+
+  ui:
+    build: ./ui
+    ports:
+      - "80:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+
+volumes:
+  shared_data:

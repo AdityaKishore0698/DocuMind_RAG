@@ -1,0 +1,29 @@
+# Keep the build context (and image) small, and never ship secrets.
+.git
+.gitignore
+.dockerignore
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Python caches / virtualenvs
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Not part of the backend image
+frontend/
+ui/
+docs/
+scripts/
+node_modules/
+*.md
+.github/
+docker-compose*.yml
+render.yaml
+.DS_Store
