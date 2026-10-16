@@ -1,8 +1,5 @@
-import os
 from typing import Optional, List
 
-from google import genai
-from google.genai import types
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -11,22 +8,9 @@ from core.database import get_db
 from models.document import DocumentChunk, Document
 from models.user import User, ChatSession, ChatMessage
 from core.dependencies import get_current_user
+from core.inference import get_provider
 
 router = APIRouter()
-
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-2")
-CHAT_MODEL = os.getenv("CHAT_MODEL", "gemini-3.6-flash")
-EMBEDDING_DIM = 768
-
-# Instantiated lazily so the app (and test suite) can import without GEMINI_API_KEY set.
-_genai_client: Optional[genai.Client] = None
-
-
-def get_genai_client() -> genai.Client:
-    global _genai_client
-    if _genai_client is None:
-        _genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    return _genai_client
 
 
 class ChatRequest(BaseModel):
@@ -37,12 +21,8 @@ class SessionCreate(BaseModel):
     title: str
 
 def get_embedding(text: str) -> List[float]:
-    result = get_genai_client().models.embed_content(
-        model=EMBEDDING_MODEL,
-        contents=text,
-        config=types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM),
-    )
-    return result.embeddings[0].values
+    # Gemini by default; INFERENCE_PROVIDER=ollama uses nomic-embed-text (see core/inference.py).
+    return get_provider().embed(text, kind="query")
 
 @router.post("/sessions")
 def create_session(session: SessionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -122,28 +102,16 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), current_user
         f"Context from documents:\n{context}"
     )
 
-    # Gemini expects "user" / "model" roles; our history stores "user" / "assistant".
-    contents: List[types.Content] = [
-        types.Content(
-            role="model" if msg.role == "assistant" else "user",
-            parts=[types.Part(text=msg.content)],
-        )
-        for msg in history[:-1]  # exclude the current query we just added
-    ]
-    contents.append(types.Content(role="user", parts=[types.Part(text=request.query)]))
+    # Prior turns, excluding the current query we just added.
+    past_turns = [(msg.role, msg.content) for msg in history[:-1]]
+    provider = get_provider()
 
     async def generate_response():
         full_response = ""
         try:
-            stream = await get_genai_client().aio.models.generate_content_stream(
-                model=CHAT_MODEL,
-                contents=contents,
-                config=types.GenerateContentConfig(system_instruction=system_prompt),
-            )
-            async for chunk in stream:
-                if chunk.text:
-                    full_response += chunk.text
-                    yield chunk.text
+            async for text in provider.stream_chat(system_prompt, past_turns, request.query):
+                full_response += text
+                yield text
         finally:
             if full_response:
                 # Save assistant message to DB even if aborted early

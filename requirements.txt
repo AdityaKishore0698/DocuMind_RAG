@@ -1,6 +1,6 @@
 # Consolidated runtime dependencies for the unified (API + Worker) container.
 # Union of api/requirements.txt and worker/requirements.txt, runtime-only
-# (test-only packages such as pytest/httpx are intentionally excluded).
+# (test-only packages such as pytest are intentionally excluded).
 
 # Web / API
 fastapi
@@ -19,6 +19,7 @@ pgvector
 # Cloud services
 supabase
 google-genai
+httpx                     # Ollama provider (INFERENCE_PROVIDER=ollama)
 
 # Auth — verify Supabase Auth access tokens
 pyjwt[cryptography]

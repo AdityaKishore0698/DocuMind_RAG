@@ -1,25 +1,12 @@
 import io
 import os
 import PyPDF2
-from google import genai
-from google.genai import types
 from celery_app import celery_app
 from database import SessionLocal
 from models import Document, DocumentChunk
 from storage import get_supabase, STORAGE_BUCKET
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-2")
-EMBEDDING_DIM = 768
-
-_genai_client = None
-
-
-def get_genai_client() -> genai.Client:
-    global _genai_client
-    if _genai_client is None:
-        _genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    return _genai_client
+from inference import get_embedding  # Gemini by default; INFERENCE_PROVIDER=ollama -> nomic-embed-text
 
 def extract_text(data: bytes, filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
@@ -32,14 +19,6 @@ def extract_text(data: bytes, filename: str) -> str:
                 text += extracted + "\n"
         return text
     return data.decode("utf-8", errors="replace")
-
-def get_embedding(text: str) -> list[float]:
-    result = get_genai_client().models.embed_content(
-        model=EMBEDDING_MODEL,
-        contents=text,
-        config=types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM),
-    )
-    return result.embeddings[0].values
 
 @celery_app.task
 def process_document(document_id: int, storage_path: str):

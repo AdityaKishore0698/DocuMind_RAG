@@ -1,0 +1,8 @@
+# Local-inference development environment (Python 3.11, same as the production images).
+# Union of api/requirements.txt and worker/requirements.txt — no new heavyweight deps:
+# Ollama is reached over HTTP with httpx (already an API dependency); no torch/CUDA here.
+-r ../api/requirements.txt
+-r ../worker/requirements.txt
+httpx
+# SQLAlchemy 2.1 maps postgresql:// to psycopg 3, but the app ships psycopg2-binary.
+sqlalchemy<2.1

@@ -7,3 +7,4 @@ google-genai
 supabase
 PyPDF2
 langchain-text-splitters
+httpx

@@ -21,6 +21,7 @@ frontend/
 ui/
 docs/
 scripts/
+local_inference/
 node_modules/
 *.md
 .github/

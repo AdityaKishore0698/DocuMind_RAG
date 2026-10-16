@@ -126,6 +126,7 @@ keeping true async processing.
 | `GEMINI_API_KEY` | Google AI Studio API key |
 | `CHAT_MODEL` / `EMBEDDING_MODEL` | `gemini-3.6-flash` / `gemini-embedding-2` |
 | `FRONTEND_ORIGINS` | CORS allow-list — set to the Vercel URL (`*` for local dev only) |
+| `INFERENCE_PROVIDER` *(optional)* | `gemini` (default) or `ollama` for local development ([local_inference/README.md](local_inference/README.md)) |
 
 **Frontend** — `frontend/.env.local`:
 
