@@ -1,0 +1,17 @@
+# Evaluation-harness dependencies — NOT installed in the production image.
+# Compile the pinned lock with:
+#   uv pip compile evaluation/requirements.in --python-version 3.11 -o evaluation/requirements.txt
+#
+# Libraries that System A (the production pipeline) also uses — the harness
+# records their installed versions in every run's metadata:
+PyPDF2                    # worker/tasks.py extract_text
+langchain-text-splitters  # worker/tasks.py RecursiveCharacterTextSplitter
+google-genai              # embeddings + generation
+# Local pgvector database access:
+psycopg2-binary
+pgvector
+numpy                     # required by pgvector's psycopg2 adapter
+# Harness-only:
+PyYAML                    # corpus.yaml
+pytest                    # evaluation/tests
+langgraph

@@ -21,6 +21,7 @@ frontend/
 ui/
 docs/
 scripts/
+evaluation/
 local_inference/
 node_modules/
 *.md

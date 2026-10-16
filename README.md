@@ -184,6 +184,8 @@ cd api && DATABASE_URL=postgresql://postgres:postgres@localhost:5435/documind_te
   ../.venv/bin/python -m pytest -q
 ```
 
+The evaluation harness has its own environment and tests — see [evaluation/README.md](evaluation/README.md).
+
 ### Optional: BM25 hybrid retrieval (local/staging only)
 
 ```bash

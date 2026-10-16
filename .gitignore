@@ -28,3 +28,9 @@ yarn-error.log*
 
 CLAUDE.md
 CHANGE_AUDIT.md
+
+# Evaluation harness — downloaded papers, extracted text, caches and raw run
+# traces (which contain paper excerpts) are local-only. Summaries may be committed.
+evaluation/data/
+evaluation/results/runs/
+evaluation/results/human_review/

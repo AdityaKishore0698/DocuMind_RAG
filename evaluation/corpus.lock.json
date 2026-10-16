@@ -1,0 +1,94 @@
+{
+  "papers": {
+    "act_aloha": {
+      "arxiv": "2304.13705v1",
+      "title": "Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware",
+      "license": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+      "sha256": "2e2fe25860f5f9cee9e655a2714e9f2264a7a5078bcd267c16d3f39af461345a",
+      "bytes": 5353485,
+      "pages": 18,
+      "recorded_at": "2026-10-14T12:21:52Z"
+    },
+    "crossformer": {
+      "arxiv": "2408.11812v1",
+      "title": "Scaling Cross-Embodied Learning: One Policy for Manipulation, Navigation, Locomotion and Aviation",
+      "license": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+      "sha256": "509826f25f8058b858ad680581a20cd47ecb80c0346b2c27fd42b6eef3482769",
+      "bytes": 30689434,
+      "pages": 17,
+      "recorded_at": "2026-10-14T12:09:03Z"
+    },
+    "diffusion_policy": {
+      "arxiv": "2303.04137v5",
+      "title": "Diffusion Policy: Visuomotor Policy Learning via Action Diffusion",
+      "license": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+      "sha256": "b65c474b696a4802d8f1457d86b637ce2c5521412570d3aa928cd54563babc8f",
+      "bytes": 6192199,
+      "pages": 19,
+      "recorded_at": "2026-10-14T12:19:45Z"
+    },
+    "hpt": {
+      "arxiv": "2409.20537v1",
+      "title": "Scaling Proprioceptive-Visual Learning with Heterogeneous Pre-trained Transformers",
+      "license": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+      "sha256": "e4cee3f35f6d2bd03ecc1d114809794042f2aa17a2f48304b0d7a90c094e48ba",
+      "bytes": 5969176,
+      "pages": 24,
+      "recorded_at": "2026-10-14T12:17:19Z"
+    },
+    "octo": {
+      "arxiv": "2405.12213v2",
+      "title": "Octo: An Open-Source Generalist Robot Policy",
+      "license": "http://creativecommons.org/licenses/by/4.0/",
+      "sha256": "73bff297cfafe523319162124e6b7f96919c0930e0a380f307255c4c7464ac93",
+      "bytes": 3675649,
+      "pages": 17,
+      "recorded_at": "2026-10-14T11:59:25Z"
+    },
+    "open_x_embodiment": {
+      "arxiv": "2310.08864v9",
+      "title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+      "license": "http://creativecommons.org/licenses/by/4.0/",
+      "sha256": "13f16aff5afdee583dc25b3c570e9bb0cf6baefb59b539928d919588cd8d9246",
+      "bytes": 4011306,
+      "pages": 12,
+      "recorded_at": "2026-10-14T11:59:25Z"
+    },
+    "openvla": {
+      "arxiv": "2406.09246v3",
+      "title": "OpenVLA: An Open-Source Vision-Language-Action Model",
+      "license": "http://creativecommons.org/licenses/by/4.0/",
+      "sha256": "353c37df34458f12f969b14dfd8b77175b727b9cddea7bb891759beddeefe1be",
+      "bytes": 13240309,
+      "pages": 37,
+      "recorded_at": "2026-10-14T11:59:25Z"
+    },
+    "pi0": {
+      "arxiv": "2410.24164v4",
+      "title": "$\u03c0_0$: A Vision-Language-Action Flow Model for General Robot Control",
+      "license": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+      "sha256": "fbdfba56258bdbd220207ba63410c6c943e43a73e97a7a5a47ca0bc74204f821",
+      "bytes": 7893845,
+      "pages": 17,
+      "recorded_at": "2026-10-14T11:59:25Z"
+    },
+    "rt1": {
+      "arxiv": "2212.06817v2",
+      "title": "RT-1: Robotics Transformer for Real-World Control at Scale",
+      "license": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+      "sha256": "81efe669c8fa50ffc7097886dc78a442fa7a8f7f2451684b93069cb9fbeda767",
+      "bytes": 14672588,
+      "pages": 31,
+      "recorded_at": "2026-10-14T12:27:13Z"
+    },
+    "rt2": {
+      "arxiv": "2307.15818v1",
+      "title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+      "license": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+      "sha256": "0a62dc36bbbfdea232ad45a0ab75c82e9cf535b55333ff22c02d5da1897ccac3",
+      "bytes": 15668163,
+      "pages": 26,
+      "recorded_at": "2026-10-14T12:33:23Z"
+    }
+  }
+}

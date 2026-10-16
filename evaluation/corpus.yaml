@@ -1,0 +1,117 @@
+# DocuMind evaluation corpus — robot imitation learning & cross-embodiment learning.
+#
+# Every entry was checked against the arXiv API (exact title + version) and its
+# arXiv abstract page (license) on 2026-10-14. PDFs are NEVER committed:
+# `evaluation/download_corpus.py` fetches them from arXiv into the gitignored
+# `evaluation/data/pdfs/` and records SHA-256 hashes in `corpus.lock.json`.
+#
+# License note: most entries use arXiv's non-exclusive distribution license
+# (arXiv may redistribute; we may not), three are CC BY 4.0. Annotations in
+# questions.jsonl therefore carry only short evidence quotes, never full text.
+#
+# To change the corpus: add/remove entries or flip `enabled`. Paper `id`s are
+# the stable keys used by questions.jsonl.
+
+version: 1
+domain: robot imitation learning and cross-embodiment learning
+source: arxiv
+
+papers:
+  # --- Cross-embodiment / generalist policies ---------------------------------
+  - id: open_x_embodiment
+    arxiv_id: "2310.08864"
+    version: v9
+    title: "Open X-Embodiment: Robotic Learning Datasets and RT-X Models"
+    year: 2023
+    license: http://creativecommons.org/licenses/by/4.0/
+    enabled: true
+
+  - id: octo
+    arxiv_id: "2405.12213"
+    version: v2
+    title: "Octo: An Open-Source Generalist Robot Policy"
+    year: 2024
+    license: http://creativecommons.org/licenses/by/4.0/
+    enabled: true
+
+  - id: openvla
+    arxiv_id: "2406.09246"
+    version: v3
+    title: "OpenVLA: An Open-Source Vision-Language-Action Model"
+    year: 2024
+    license: http://creativecommons.org/licenses/by/4.0/
+    enabled: true
+
+  - id: pi0
+    arxiv_id: "2410.24164"
+    version: v4
+    title: "$π_0$: A Vision-Language-Action Flow Model for General Robot Control"
+    year: 2024
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: true
+
+  - id: crossformer
+    arxiv_id: "2408.11812"
+    version: v1
+    title: "Scaling Cross-Embodied Learning: One Policy for Manipulation, Navigation, Locomotion and Aviation"
+    year: 2024
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: true
+
+  - id: hpt
+    arxiv_id: "2409.20537"
+    version: v1
+    title: "Scaling Proprioceptive-Visual Learning with Heterogeneous Pre-trained Transformers"
+    year: 2024
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: true
+
+  # --- Imitation-learning foundations ------------------------------------------
+  - id: diffusion_policy
+    arxiv_id: "2303.04137"
+    version: v5
+    title: "Diffusion Policy: Visuomotor Policy Learning via Action Diffusion"
+    year: 2023
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: true
+
+  - id: act_aloha
+    arxiv_id: "2304.13705"
+    version: v1
+    title: "Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware"
+    year: 2023
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: true
+
+  - id: rt1
+    arxiv_id: "2212.06817"
+    version: v2
+    title: "RT-1: Robotics Transformer for Real-World Control at Scale"
+    year: 2022
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: true
+
+  - id: rt2
+    arxiv_id: "2307.15818"
+    version: v1
+    title: "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control"
+    year: 2023
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: true
+
+  # --- Optional extras (disabled for the first benchmark) ----------------------
+  - id: mobile_aloha
+    arxiv_id: "2401.02117"
+    version: v1
+    title: "Mobile ALOHA: Learning Bimanual Mobile Manipulation with Low-Cost Whole-Body Teleoperation"
+    year: 2024
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: false
+
+  - id: umi
+    arxiv_id: "2402.10329"
+    version: v3
+    title: "Universal Manipulation Interface: In-The-Wild Robot Teaching Without In-The-Wild Robots"
+    year: 2024
+    license: http://arxiv.org/licenses/nonexclusive-distrib/1.0/
+    enabled: false
