@@ -170,6 +170,18 @@ npm run dev                      # http://localhost:3000
 
 `docker compose up` still works for an all-local stack if you prefer separate services.
 
+### Tests (what CI runs)
+
+```bash
+docker run -d --name documind-test-db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=documind_test -p 127.0.0.1:5435:5432 pgvector/pgvector:pg16
+python3.11 -m venv .venv && .venv/bin/pip install -r api/requirements.txt
+cd api && DATABASE_URL=postgresql://postgres:postgres@localhost:5435/documind_test \
+  TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5435/documind_test \
+  SUPABASE_URL=https://example.supabase.co SUPABASE_SERVICE_ROLE_KEY=dummy GEMINI_API_KEY=dummy \
+  ../.venv/bin/python -m pytest -q
+```
+
 ---
 
 ## Deployment
