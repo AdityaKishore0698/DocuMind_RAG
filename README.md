@@ -126,6 +126,7 @@ keeping true async processing.
 | `GEMINI_API_KEY` | Google AI Studio API key |
 | `CHAT_MODEL` / `EMBEDDING_MODEL` | `gemini-3.6-flash` / `gemini-embedding-2` |
 | `FRONTEND_ORIGINS` | CORS allow-list — set to the Vercel URL (`*` for local dev only) |
+| `RETRIEVAL_MODE` *(optional)* | `vector` (default) or `hybrid_bm25` — the latter needs `scripts/migrations/bm25.py up`; validated locally only, not enabled in production |
 | `INFERENCE_PROVIDER` *(optional)* | `gemini` (default) or `ollama` for local development ([local_inference/README.md](local_inference/README.md)) |
 
 **Frontend** — `frontend/.env.local`:
@@ -182,6 +183,15 @@ cd api && DATABASE_URL=postgresql://postgres:postgres@localhost:5435/documind_te
   SUPABASE_URL=https://example.supabase.co SUPABASE_SERVICE_ROLE_KEY=dummy GEMINI_API_KEY=dummy \
   ../.venv/bin/python -m pytest -q
 ```
+
+### Optional: BM25 hybrid retrieval (local/staging only)
+
+```bash
+python scripts/migrations/bm25.py up --database-url postgresql://…@127.0.0.1:…/db   # status | down
+RETRIEVAL_MODE=hybrid_bm25 …                                                         # then start the API
+```
+The migration runner refuses non-local databases. Design, evidence and rollout steps:
+[docs/proposals/bm25-hybrid-production.md](docs/proposals/bm25-hybrid-production.md).
 
 ---
 

@@ -15,6 +15,11 @@ with engine.connect() as conn:
 
 Base.metadata.create_all(bind=engine)
 
+# Fails fast on an unknown RETRIEVAL_MODE, or on hybrid_bm25 without migration 001_bm25_hybrid.
+from core.retrieval import validate_configuration  # noqa: E402
+
+validate_configuration(engine)
+
 app = FastAPI(title="DocuMind API")
 
 # Allow the Next.js frontend (browser) to call the API cross-origin.

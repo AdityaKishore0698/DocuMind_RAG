@@ -5,10 +5,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from core.database import get_db
-from models.document import DocumentChunk, Document
 from models.user import User, ChatSession, ChatMessage
 from core.dependencies import get_current_user
 from core.inference import get_provider
+from core.retrieval import retrieve_chunks
 
 router = APIRouter()
 
@@ -82,13 +82,10 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), current_user
     db.commit()
 
     query_embedding = get_embedding(request.query)
-    
-    # RAG Vector Search: Only search chunks from documents belonging to the current user!
-    results = db.query(DocumentChunk).join(Document).filter(
-        Document.user_id == current_user.id
-    ).order_by(
-        DocumentChunk.embedding.cosine_distance(query_embedding)
-    ).limit(5).all()
+
+    # Only chunks from the current user's documents; vector-only unless RETRIEVAL_MODE=hybrid_bm25.
+    results = retrieve_chunks(db, user_id=current_user.id, query_text=request.query,
+                              query_embedding=query_embedding)
     
     context = "\n\n".join([chunk.content for chunk in results])
     
