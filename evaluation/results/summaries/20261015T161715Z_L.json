@@ -1,0 +1,485 @@
+{
+  "run_id": "20261015T161715Z_L",
+  "system": "L",
+  "description": "Local-model baseline \u2014 System A pipeline with qwen3:8b generation and nomic-embed-text embeddings via Ollama (NOT the Gemini Baseline A)",
+  "provider": "ollama",
+  "config": {
+    "provider": "ollama",
+    "embedding_model": "nomic-embed-text",
+    "embedding_dim": 768,
+    "chat_model": "qwen3:8b",
+    "top_k": 5,
+    "chunk_size": 1000,
+    "chunk_overlap": 100,
+    "fresh_query_embeddings": false,
+    "system_prompt_sha256": "a170b452116962c66182bb0c19b805c3cb9ce308632aa6a459c8a08992ee6118",
+    "retrieval_sql_sha256": "905604a2d1337d05c5c9c243cdb94357f3d67a98c7072aeaaf31125627973d2e",
+    "deviations": [
+      "strip_nul: evaluation-only removal of NUL (0x00) characters before chunking and storage",
+      "embedding model nomic-embed-text (768-d) with search_document:/search_query: prefixes",
+      "generation qwen3:8b via Ollama, think=false, num_ctx 8192, model-default sampling",
+      "batched ingestion embeddings via /api/embed",
+      "harness-side page provenance for scoring only"
+    ],
+    "nul_characters_removed_by_paper": {
+      "octo": 2,
+      "diffusion_policy": 3,
+      "act_aloha": 3
+    }
+  },
+  "questions": 42,
+  "answered_without_error": 42,
+  "retrieval": {
+    "evidence_recall@5": {
+      "mean": 0.41754385964912283,
+      "n": 38
+    },
+    "page_recall@5": {
+      "mean": 0.5776315789473684,
+      "n": 38
+    },
+    "evidence_precision@5": {
+      "mean": 0.1315789473684211,
+      "n": 38
+    },
+    "page_precision@5": {
+      "mean": 0.19473684210526324,
+      "n": 38
+    },
+    "paper_recall@5": {
+      "mean": 1.0,
+      "n": 38
+    },
+    "facet_coverage@5": {
+      "mean": 0.5526315789473685,
+      "n": 38
+    },
+    "evidence_mrr": {
+      "mean": 0.27149122807017545,
+      "n": 38
+    },
+    "page_mrr": {
+      "mean": 0.4039473684210526,
+      "n": 38
+    }
+  },
+  "retrieval_by_type": {
+    "cross_paper": {
+      "n": 7,
+      "evidence_recall@5": {
+        "mean": 0.25,
+        "n": 7
+      },
+      "page_recall@5": {
+        "mean": 0.39285714285714285,
+        "n": 7
+      },
+      "evidence_precision@5": {
+        "mean": 0.14285714285714285,
+        "n": 7
+      },
+      "page_precision@5": {
+        "mean": 0.17142857142857143,
+        "n": 7
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 7
+      },
+      "facet_coverage@5": {
+        "mean": 0.5714285714285714,
+        "n": 7
+      },
+      "evidence_mrr": {
+        "mean": 0.29047619047619044,
+        "n": 7
+      },
+      "page_mrr": {
+        "mean": 0.3261904761904762,
+        "n": 7
+      }
+    },
+    "dataset": {
+      "n": 6,
+      "evidence_recall@5": {
+        "mean": 0.5,
+        "n": 6
+      },
+      "page_recall@5": {
+        "mean": 0.6666666666666666,
+        "n": 6
+      },
+      "evidence_precision@5": {
+        "mean": 0.13333333333333333,
+        "n": 6
+      },
+      "page_precision@5": {
+        "mean": 0.16666666666666666,
+        "n": 6
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "facet_coverage@5": {
+        "mean": 0.5,
+        "n": 6
+      },
+      "evidence_mrr": {
+        "mean": 0.20833333333333334,
+        "n": 6
+      },
+      "page_mrr": {
+        "mean": 0.45,
+        "n": 6
+      }
+    },
+    "limitation": {
+      "n": 6,
+      "evidence_recall@5": {
+        "mean": 0.6805555555555555,
+        "n": 6
+      },
+      "page_recall@5": {
+        "mean": 0.8333333333333334,
+        "n": 6
+      },
+      "evidence_precision@5": {
+        "mean": 0.16666666666666666,
+        "n": 6
+      },
+      "page_precision@5": {
+        "mean": 0.3,
+        "n": 6
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "facet_coverage@5": {
+        "mean": 0.8333333333333334,
+        "n": 6
+      },
+      "evidence_mrr": {
+        "mean": 0.4777777777777778,
+        "n": 6
+      },
+      "page_mrr": {
+        "mean": 0.5888888888888889,
+        "n": 6
+      }
+    },
+    "lookup": {
+      "n": 3,
+      "evidence_recall@5": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      },
+      "page_recall@5": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      },
+      "evidence_precision@5": {
+        "mean": 0.20000000000000004,
+        "n": 3
+      },
+      "page_precision@5": {
+        "mean": 0.20000000000000004,
+        "n": 3
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 3
+      },
+      "facet_coverage@5": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      },
+      "evidence_mrr": {
+        "mean": 0.3333333333333333,
+        "n": 3
+      },
+      "page_mrr": {
+        "mean": 0.5,
+        "n": 3
+      }
+    },
+    "method": {
+      "n": 10,
+      "evidence_recall@5": {
+        "mean": 0.4033333333333333,
+        "n": 10
+      },
+      "page_recall@5": {
+        "mean": 0.62,
+        "n": 10
+      },
+      "evidence_precision@5": {
+        "mean": 0.13999999999999999,
+        "n": 10
+      },
+      "page_precision@5": {
+        "mean": 0.24000000000000005,
+        "n": 10
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 10
+      },
+      "facet_coverage@5": {
+        "mean": 0.6,
+        "n": 10
+      },
+      "evidence_mrr": {
+        "mean": 0.26666666666666666,
+        "n": 10
+      },
+      "page_mrr": {
+        "mean": 0.38333333333333336,
+        "n": 10
+      }
+    },
+    "negative": {
+      "n": 4,
+      "evidence_recall@5": {
+        "mean": null,
+        "n": 0
+      },
+      "page_recall@5": {
+        "mean": null,
+        "n": 0
+      },
+      "evidence_precision@5": {
+        "mean": null,
+        "n": 0
+      },
+      "page_precision@5": {
+        "mean": null,
+        "n": 0
+      },
+      "paper_recall@5": {
+        "mean": null,
+        "n": 0
+      },
+      "facet_coverage@5": {
+        "mean": null,
+        "n": 0
+      },
+      "evidence_mrr": {
+        "mean": null,
+        "n": 0
+      },
+      "page_mrr": {
+        "mean": null,
+        "n": 0
+      }
+    },
+    "result": {
+      "n": 6,
+      "evidence_recall@5": {
+        "mean": 0.16666666666666666,
+        "n": 6
+      },
+      "page_recall@5": {
+        "mean": 0.3333333333333333,
+        "n": 6
+      },
+      "evidence_precision@5": {
+        "mean": 0.03333333333333333,
+        "n": 6
+      },
+      "page_precision@5": {
+        "mean": 0.06666666666666667,
+        "n": 6
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "facet_coverage@5": {
+        "mean": 0.16666666666666666,
+        "n": 6
+      },
+      "evidence_mrr": {
+        "mean": 0.08333333333333333,
+        "n": 6
+      },
+      "page_mrr": {
+        "mean": 0.25,
+        "n": 6
+      }
+    }
+  },
+  "answers": {
+    "keyword_recall_heuristic": {
+      "mean": 0.5583333333333333,
+      "n": 38
+    },
+    "negative_abstention_rate_heuristic": {
+      "mean": 1.0,
+      "n": 4
+    },
+    "false_abstention_rate_heuristic": {
+      "mean": 0.21052631578947367,
+      "n": 38
+    },
+    "citation_markers_mean": {
+      "mean": 0.30952380952380953,
+      "n": 42
+    },
+    "human_correctness": {
+      "mean": null,
+      "n": 0
+    },
+    "human_paper_attribution": {
+      "mean": null,
+      "n": 0
+    }
+  },
+  "latency_s": {
+    "embed_query_s": {
+      "p50": 0.06798131250252482,
+      "p95": 0.628404627050622,
+      "n": 12
+    },
+    "retrieval_db_s": {
+      "p50": 0.01097687499714084,
+      "p95": 0.021683904809469814,
+      "n": 42
+    },
+    "ttft_s": {
+      "p50": 16.56306297899573,
+      "p95": 24.593940110755632,
+      "n": 42
+    },
+    "generation_s": {
+      "p50": 31.883646875503473,
+      "p95": 60.238445116344494,
+      "n": 42
+    },
+    "end_to_end_s": {
+      "p50": 31.93882147900149,
+      "p95": 60.254493637500104,
+      "n": 42
+    }
+  },
+  "run_status": {
+    "status": "completed",
+    "completed": 42,
+    "planned": 42,
+    "remaining": [],
+    "stop_reason": null,
+    "sessions": [
+      {
+        "session": 1,
+        "started_at": "2026-10-15T16:17:15Z",
+        "finished_at": "2026-10-15T16:21:04Z",
+        "status": "paused"
+      },
+      {
+        "session": 2,
+        "started_at": "2026-10-15T16:21:33Z",
+        "finished_at": "2026-10-15T16:41:04Z",
+        "status": "session_finished"
+      }
+    ],
+    "outcomes": {
+      "answered": 42
+    },
+    "questions_with_multiple_attempts": {}
+  },
+  "gemini": {
+    "successful_requests": {
+      "embed_query": 12,
+      "generate": 42
+    },
+    "attempts": {
+      "embed_query": 12,
+      "generate": 42
+    },
+    "retries": 0,
+    "retry_sleep_s": 0.0,
+    "pacing_sleep_s": 0.0,
+    "embed_items_embedded": 12,
+    "tokens": {
+      "prompt_token_count": 52870,
+      "candidates_token_count": 5397,
+      "total_token_count": 58267
+    },
+    "first_attempt_errors": {},
+    "final_failures": {}
+  },
+  "errors": {
+    "questions_with_errors": 0,
+    "categories": []
+  },
+  "availability": {
+    "retrieval_quality": "measured (deterministic, against annotated gold evidence)",
+    "evidence_coverage": "measured (facet coverage@k)",
+    "citation_support": "NOT APPLICABLE for System A \u2014 it is not prompted to cite and returns no source ids",
+    "answer_correctness": "UNAVAILABLE \u2014 pending human review (fill human_scores.csv, re-run report)",
+    "paper_attribution_in_answers": "UNAVAILABLE \u2014 pending human review",
+    "keyword_recall / abstention": "heuristic signals only \u2014 not correctness",
+    "tokens": "measured from Ollama prompt_eval_count / eval_count (no thinking tokens: think=false)",
+    "latency": "measured; excludes client-side pacing; query embedding excluded when served from cache"
+  },
+  "environment": {
+    "git_head": "4a89dc18b72bac98d639915ad5893570c55bc770",
+    "git_dirty": true,
+    "baseline_commit": "4a89dc18b72bac98d639915ad5893570c55bc770",
+    "python": "3.11.15",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "packages": {
+      "PyPDF2": "3.0.1",
+      "langchain-text-splitters": "1.1.3",
+      "langchain-core": "1.6.10",
+      "google-genai": "2.30.1",
+      "psycopg2-binary": "2.9.13",
+      "pgvector": "0.5.1",
+      "numpy": "2.4.6",
+      "httpx": "0.28.1"
+    }
+  },
+  "models": {
+    "ollama_version": "0.40.4",
+    "base_url": "http://127.0.0.1:11434",
+    "models": {
+      "qwen3:8b": {
+        "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+        "size": 5225388164,
+        "parameter_size": "8.2B",
+        "quantization": "Q4_K_M",
+        "default_parameters": "repeat_penalty                 1\nstop                           \"<|im_start|>\"\nstop                           \"<|im_end|>\"\ntemperature                    0.6\ntop_k                          20\ntop_p                          0.95"
+      },
+      "nomic-embed-text": {
+        "digest": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+        "size": 274302450,
+        "parameter_size": "137M",
+        "quantization": "F16",
+        "default_parameters": "num_ctx                        8192"
+      }
+    },
+    "request_options": {
+      "think": false,
+      "keep_alive": "2m",
+      "num_ctx": 8192
+    },
+    "embedding_prefixes": {
+      "document": "search_document: ",
+      "query": "search_query: "
+    }
+  },
+  "elapsed_s": 1400.29,
+  "deviations": [
+    "strip_nul: evaluation-only removal of NUL (0x00) characters before chunking and storage",
+    "embedding model nomic-embed-text (768-d) with search_document:/search_query: prefixes",
+    "generation qwen3:8b via Ollama, think=false, num_ctx 8192, model-default sampling",
+    "batched ingestion embeddings via /api/embed",
+    "harness-side page provenance for scoring only"
+  ],
+  "nul_characters_removed_by_paper": {
+    "octo": 2,
+    "diffusion_policy": 3,
+    "act_aloha": 3
+  }
+}

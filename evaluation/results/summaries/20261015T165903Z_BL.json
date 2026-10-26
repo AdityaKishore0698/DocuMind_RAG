@@ -1,0 +1,502 @@
+{
+  "run_id": "20261015T165903Z_BL",
+  "system": "BL",
+  "description": "System L with BM25 hybrid retrieval (vector + PostgreSQL FTS + RRF), one-shot answer",
+  "provider": "ollama",
+  "config": {
+    "provider": "ollama",
+    "retrieval": "hybrid_bm25",
+    "mode": "oneshot",
+    "corpus_system": "L",
+    "embedding_model": "nomic-embed-text",
+    "embedding_dim": 768,
+    "chat_model": "qwen3:8b",
+    "top_k": 5,
+    "chunk_size": 1000,
+    "chunk_overlap": 100,
+    "fresh_query_embeddings": false,
+    "system_prompt_sha256": "a170b452116962c66182bb0c19b805c3cb9ce308632aa6a459c8a08992ee6118",
+    "retrieval_sql_sha256": "905604a2d1337d05c5c9c243cdb94357f3d67a98c7072aeaaf31125627973d2e",
+    "deviations": [
+      "strip_nul: evaluation-only removal of NUL (0x00) characters before chunking and storage",
+      "embedding model nomic-embed-text (768-d) with search_document:/search_query: prefixes",
+      "generation qwen3:8b via Ollama, think=false, num_ctx 8192, model-default sampling",
+      "batched ingestion embeddings via /api/embed",
+      "harness-side page provenance for scoring only",
+      "retrieval: BM25 hybrid (k1 1.2, b 0.75, RRF k 60, 20 candidates/list)"
+    ],
+    "nul_characters_removed_by_paper": {
+      "octo": 2,
+      "diffusion_policy": 3,
+      "act_aloha": 3
+    }
+  },
+  "questions": 42,
+  "answered_without_error": 42,
+  "retrieval": {
+    "evidence_recall@5": {
+      "mean": 0.5438596491228069,
+      "n": 38
+    },
+    "page_recall@5": {
+      "mean": 0.6144736842105264,
+      "n": 38
+    },
+    "evidence_precision@5": {
+      "mean": 0.16315789473684217,
+      "n": 38
+    },
+    "page_precision@5": {
+      "mean": 0.22105263157894742,
+      "n": 38
+    },
+    "paper_recall@5": {
+      "mean": 0.9736842105263158,
+      "n": 38
+    },
+    "facet_coverage@5": {
+      "mean": 0.618421052631579,
+      "n": 38
+    },
+    "evidence_mrr": {
+      "mean": 0.35921052631578954,
+      "n": 38
+    },
+    "page_mrr": {
+      "mean": 0.46885964912280703,
+      "n": 38
+    }
+  },
+  "retrieval_by_type": {
+    "cross_paper": {
+      "n": 7,
+      "evidence_recall@5": {
+        "mean": 0.3333333333333333,
+        "n": 7
+      },
+      "page_recall@5": {
+        "mean": 0.32142857142857145,
+        "n": 7
+      },
+      "evidence_precision@5": {
+        "mean": 0.17142857142857143,
+        "n": 7
+      },
+      "page_precision@5": {
+        "mean": 0.17142857142857143,
+        "n": 7
+      },
+      "paper_recall@5": {
+        "mean": 0.8571428571428571,
+        "n": 7
+      },
+      "facet_coverage@5": {
+        "mean": 0.5714285714285714,
+        "n": 7
+      },
+      "evidence_mrr": {
+        "mean": 0.3095238095238095,
+        "n": 7
+      },
+      "page_mrr": {
+        "mean": 0.3095238095238095,
+        "n": 7
+      }
+    },
+    "dataset": {
+      "n": 6,
+      "evidence_recall@5": {
+        "mean": 0.5,
+        "n": 6
+      },
+      "page_recall@5": {
+        "mean": 0.8333333333333334,
+        "n": 6
+      },
+      "evidence_precision@5": {
+        "mean": 0.13333333333333333,
+        "n": 6
+      },
+      "page_precision@5": {
+        "mean": 0.23333333333333336,
+        "n": 6
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "facet_coverage@5": {
+        "mean": 0.5,
+        "n": 6
+      },
+      "evidence_mrr": {
+        "mean": 0.1722222222222222,
+        "n": 6
+      },
+      "page_mrr": {
+        "mean": 0.5055555555555555,
+        "n": 6
+      }
+    },
+    "limitation": {
+      "n": 6,
+      "evidence_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "page_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "evidence_precision@5": {
+        "mean": 0.26666666666666666,
+        "n": 6
+      },
+      "page_precision@5": {
+        "mean": 0.43333333333333335,
+        "n": 6
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "facet_coverage@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "evidence_mrr": {
+        "mean": 0.7833333333333333,
+        "n": 6
+      },
+      "page_mrr": {
+        "mean": 0.7833333333333333,
+        "n": 6
+      }
+    },
+    "lookup": {
+      "n": 3,
+      "evidence_recall@5": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      },
+      "page_recall@5": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      },
+      "evidence_precision@5": {
+        "mean": 0.20000000000000004,
+        "n": 3
+      },
+      "page_precision@5": {
+        "mean": 0.13333333333333333,
+        "n": 3
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 3
+      },
+      "facet_coverage@5": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      },
+      "evidence_mrr": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      },
+      "page_mrr": {
+        "mean": 0.6666666666666666,
+        "n": 3
+      }
+    },
+    "method": {
+      "n": 10,
+      "evidence_recall@5": {
+        "mean": 0.38333333333333336,
+        "n": 10
+      },
+      "page_recall@5": {
+        "mean": 0.45999999999999996,
+        "n": 10
+      },
+      "evidence_precision@5": {
+        "mean": 0.12000000000000002,
+        "n": 10
+      },
+      "page_precision@5": {
+        "mean": 0.16,
+        "n": 10
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 10
+      },
+      "facet_coverage@5": {
+        "mean": 0.5,
+        "n": 10
+      },
+      "evidence_mrr": {
+        "mean": 0.2333333333333333,
+        "n": 10
+      },
+      "page_mrr": {
+        "mean": 0.38333333333333336,
+        "n": 10
+      }
+    },
+    "negative": {
+      "n": 4,
+      "evidence_recall@5": {
+        "mean": null,
+        "n": 0
+      },
+      "page_recall@5": {
+        "mean": null,
+        "n": 0
+      },
+      "evidence_precision@5": {
+        "mean": null,
+        "n": 0
+      },
+      "page_precision@5": {
+        "mean": null,
+        "n": 0
+      },
+      "paper_recall@5": {
+        "mean": null,
+        "n": 0
+      },
+      "facet_coverage@5": {
+        "mean": null,
+        "n": 0
+      },
+      "evidence_mrr": {
+        "mean": null,
+        "n": 0
+      },
+      "page_mrr": {
+        "mean": null,
+        "n": 0
+      }
+    },
+    "result": {
+      "n": 6,
+      "evidence_recall@5": {
+        "mean": 0.5833333333333334,
+        "n": 6
+      },
+      "page_recall@5": {
+        "mean": 0.5833333333333334,
+        "n": 6
+      },
+      "evidence_precision@5": {
+        "mean": 0.13333333333333333,
+        "n": 6
+      },
+      "page_precision@5": {
+        "mean": 0.19999999999999998,
+        "n": 6
+      },
+      "paper_recall@5": {
+        "mean": 1.0,
+        "n": 6
+      },
+      "facet_coverage@5": {
+        "mean": 0.5833333333333334,
+        "n": 6
+      },
+      "evidence_mrr": {
+        "mean": 0.23611111111111108,
+        "n": 6
+      },
+      "page_mrr": {
+        "mean": 0.34722222222222215,
+        "n": 6
+      }
+    }
+  },
+  "answers": {
+    "keyword_recall_heuristic": {
+      "mean": 0.5947368421052632,
+      "n": 38
+    },
+    "negative_abstention_rate_heuristic": {
+      "mean": 0.75,
+      "n": 4
+    },
+    "false_abstention_rate_heuristic": {
+      "mean": 0.2631578947368421,
+      "n": 38
+    },
+    "citation_markers_mean": {
+      "mean": 0.30952380952380953,
+      "n": 42
+    },
+    "citation_validity": {
+      "mean": null,
+      "n": 0
+    },
+    "citation_support_precision": {
+      "mean": null,
+      "n": 0
+    },
+    "answers_with_citations": {
+      "mean": null,
+      "n": 0
+    },
+    "llm_calls_per_question": {
+      "mean": null,
+      "n": 0
+    },
+    "retrieval_rounds_mean": {
+      "mean": null,
+      "n": 0
+    },
+    "human_correctness": {
+      "mean": null,
+      "n": 0
+    },
+    "human_paper_attribution": {
+      "mean": null,
+      "n": 0
+    }
+  },
+  "latency_s": {
+    "embed_query_s": {
+      "p50": null,
+      "p95": null,
+      "n": 0
+    },
+    "retrieval_db_s": {
+      "p50": 0.05744756249623606,
+      "p95": 0.07953130864116247,
+      "n": 42
+    },
+    "ttft_s": {
+      "p50": 12.861065771496214,
+      "p95": 15.207856558008642,
+      "n": 42
+    },
+    "generation_s": {
+      "p50": 25.2377930415023,
+      "p95": 51.83638126665973,
+      "n": 42
+    },
+    "end_to_end_s": {
+      "p50": 25.295071332999214,
+      "p95": 51.90345502435375,
+      "n": 42
+    }
+  },
+  "run_status": {
+    "status": "completed",
+    "completed": 42,
+    "planned": 42,
+    "remaining": [],
+    "stop_reason": null,
+    "sessions": [
+      {
+        "session": 1,
+        "started_at": "2026-10-15T16:59:03Z",
+        "finished_at": "2026-10-15T17:18:51Z",
+        "status": "session_finished"
+      }
+    ],
+    "outcomes": {
+      "answered": 42
+    },
+    "questions_with_multiple_attempts": {}
+  },
+  "gemini": {
+    "successful_requests": {
+      "generate": 42
+    },
+    "attempts": {
+      "generate": 42
+    },
+    "retries": 0,
+    "retry_sleep_s": 0.0,
+    "pacing_sleep_s": 0.0,
+    "embed_items_embedded": 0,
+    "tokens": {
+      "prompt_token_count": 50890,
+      "candidates_token_count": 5924,
+      "total_token_count": 56814
+    },
+    "first_attempt_errors": {},
+    "final_failures": {}
+  },
+  "errors": {
+    "questions_with_errors": 0,
+    "categories": []
+  },
+  "availability": {
+    "retrieval_quality": "measured (deterministic, against annotated gold evidence)",
+    "evidence_coverage": "measured (facet coverage@k)",
+    "citation_support": "NOT APPLICABLE \u2014 this system is not prompted to cite and returns no source ids",
+    "answer_correctness": "UNAVAILABLE \u2014 pending human review (fill human_scores.csv, re-run report)",
+    "paper_attribution_in_answers": "UNAVAILABLE \u2014 pending human review",
+    "keyword_recall / abstention": "heuristic signals only \u2014 not correctness",
+    "tokens": "measured from Ollama prompt_eval_count / eval_count (no thinking tokens: think=false)",
+    "latency": "measured; excludes client-side pacing; query embedding excluded when served from cache"
+  },
+  "environment": {
+    "git_head": "4a89dc18b72bac98d639915ad5893570c55bc770",
+    "git_dirty": true,
+    "baseline_commit": "4a89dc18b72bac98d639915ad5893570c55bc770",
+    "python": "3.11.15",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "packages": {
+      "PyPDF2": "3.0.1",
+      "langchain-text-splitters": "1.1.3",
+      "langchain-core": "1.6.10",
+      "google-genai": "2.30.1",
+      "psycopg2-binary": "2.9.13",
+      "pgvector": "0.5.1",
+      "numpy": "2.4.6",
+      "httpx": "0.28.1"
+    }
+  },
+  "models": {
+    "ollama_version": "0.40.4",
+    "base_url": "http://127.0.0.1:11434",
+    "models": {
+      "qwen3:8b": {
+        "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+        "size": 5225388164,
+        "parameter_size": "8.2B",
+        "quantization": "Q4_K_M",
+        "default_parameters": "repeat_penalty                 1\nstop                           \"<|im_start|>\"\nstop                           \"<|im_end|>\"\ntemperature                    0.6\ntop_k                          20\ntop_p                          0.95"
+      },
+      "nomic-embed-text": {
+        "digest": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+        "size": 274302450,
+        "parameter_size": "137M",
+        "quantization": "F16",
+        "default_parameters": "num_ctx                        8192"
+      }
+    },
+    "request_options": {
+      "think": false,
+      "keep_alive": "2m",
+      "num_ctx": 8192
+    },
+    "embedding_prefixes": {
+      "document": "search_document: ",
+      "query": "search_query: "
+    }
+  },
+  "elapsed_s": 1188.47,
+  "deviations": [
+    "strip_nul: evaluation-only removal of NUL (0x00) characters before chunking and storage",
+    "embedding model nomic-embed-text (768-d) with search_document:/search_query: prefixes",
+    "generation qwen3:8b via Ollama, think=false, num_ctx 8192, model-default sampling",
+    "batched ingestion embeddings via /api/embed",
+    "harness-side page provenance for scoring only",
+    "retrieval: BM25 hybrid (k1 1.2, b 0.75, RRF k 60, 20 candidates/list)"
+  ],
+  "nul_characters_removed_by_paper": {
+    "octo": 2,
+    "diffusion_policy": 3,
+    "act_aloha": 3
+  }
+}

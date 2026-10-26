@@ -1,9 +1,10 @@
 celery
 redis
-sqlalchemy
+sqlalchemy>=2.0,<2.1      # 2.1 maps postgresql:// to psycopg 3; the app ships psycopg2-binary
 psycopg2-binary
 pgvector
 google-genai
 supabase
 PyPDF2
 langchain-text-splitters
+httpx

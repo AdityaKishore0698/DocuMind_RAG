@@ -1,6 +1,6 @@
 # Consolidated runtime dependencies for the unified (API + Worker) container.
 # Union of api/requirements.txt and worker/requirements.txt, runtime-only
-# (test-only packages such as pytest/httpx are intentionally excluded).
+# (test-only packages such as pytest are intentionally excluded).
 
 # Web / API
 fastapi
@@ -12,13 +12,14 @@ celery
 redis
 
 # Database + pgvector
-sqlalchemy
+sqlalchemy>=2.0,<2.1      # 2.1 maps postgresql:// to psycopg 3; the app ships psycopg2-binary
 psycopg2-binary
 pgvector
 
 # Cloud services
 supabase
 google-genai
+httpx                     # Ollama provider (INFERENCE_PROVIDER=ollama)
 
 # Auth — verify Supabase Auth access tokens
 pyjwt[cryptography]
@@ -26,3 +27,6 @@ pyjwt[cryptography]
 # Document processing
 PyPDF2
 langchain-text-splitters
+
+# Deep-analysis agent (AGENT_ENABLED; imported lazily)
+langgraph==1.2.15

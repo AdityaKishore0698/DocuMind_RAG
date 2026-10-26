@@ -223,9 +223,12 @@ body {
 .state:focus-visible::after { opacity: 0.1; }
 .state:active::after { opacity: 0.12; }
 
-:focus-visible {
-  outline: 2px solid var(--md-primary);
-  outline-offset: 2px;
+/* In the base layer so an element's own `outline-none` (fields that draw their own focus state) wins. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+  }
 }
 
 .scrollbar-thin {

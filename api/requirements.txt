@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-sqlalchemy
+sqlalchemy>=2.0,<2.1      # 2.1 maps postgresql:// to psycopg 3; the app ships psycopg2-binary
 psycopg2-binary
 pgvector
 python-multipart
@@ -9,5 +9,6 @@ redis
 google-genai
 supabase
 pyjwt[cryptography]
+langgraph==1.2.15         # deep-analysis agent (AGENT_ENABLED; imported lazily)
 pytest
 httpx

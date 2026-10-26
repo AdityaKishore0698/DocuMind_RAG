@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -27,6 +28,8 @@ class ChatSession(Base):
 
     user = relationship("User", back_populates="sessions")
     messages = relationship("ChatMessage", back_populates="session", order_by="ChatMessage.created_at", cascade="all, delete-orphan")
+    # Papers uploaded in this chat; deleting the chat deletes them (and, via the API, their stored files).
+    documents = relationship("Document", back_populates="session", cascade="all, delete-orphan")
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -36,5 +39,7 @@ class ChatMessage(Base):
     role = Column(String) # 'user' or 'assistant'
     content = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Assistant turns: {"sources": [...], "cited": [...], "mode": "rag"|"agent"} (migration 002).
+    sources = Column(JSONB, nullable=True)
 
     session = relationship("ChatSession", back_populates="messages")

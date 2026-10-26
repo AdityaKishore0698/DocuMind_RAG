@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -46,8 +47,14 @@ def get_current_user(
             username=(email.split("@")[0] if email else None),
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            db.commit()
+        except IntegrityError:
+            # A new user's first page load sends several requests at once; another one created the row.
+            db.rollback()
+            user = db.query(User).filter(User.supabase_uid == supabase_uid).one()
+        else:
+            db.refresh(user)
     elif email and user.email != email:
         user.email = email
         db.commit()

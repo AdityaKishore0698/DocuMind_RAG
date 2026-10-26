@@ -25,8 +25,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DocuMind",
-  description: "Chat with your documents — a multi-tenant RAG workspace.",
+  title: "ResearchLens — Research Paper Analyst",
+  description: "Ask cited questions, compare methods and find research gaps across your uploaded papers.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

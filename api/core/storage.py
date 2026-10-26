@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 
@@ -34,3 +35,20 @@ def object_key(user_id: int, document_id: int, filename: str) -> str:
     """
     safe = _UNSAFE.sub("_", filename).strip("_") or "file"
     return f"{user_id}/{document_id}/{safe}"
+
+
+def remove_stored_files(keys: list[str]) -> int:
+    """Delete stored objects AFTER their database rows are gone; returns how many could not be removed.
+
+    Deleting rows first means a failure here leaves only unreachable files (reported to the caller and logged with a
+    count, never the keys), not papers whose files have vanished.
+    """
+    if not keys:
+        return 0
+    try:
+        get_supabase().storage.from_(STORAGE_BUCKET).remove(keys)
+        return 0
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger("documind.storage").warning("event=storage_cleanup_failed objects=%s error=%s",
+                                                      len(keys), type(exc).__name__)
+        return len(keys)

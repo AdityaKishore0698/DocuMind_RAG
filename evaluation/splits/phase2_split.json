@@ -1,0 +1,20 @@
+{
+  "name": "phase2_paper_group_split",
+  "registered_at": "2026-10-15T16:28:46Z (before any BM25 measurement)",
+  "unit": "connected components of the paper graph (papers linked by cross-paper questions)",
+  "groups": {
+    "G1": ["octo", "openvla", "pi0"],
+    "G2": ["act_aloha", "diffusion_policy"],
+    "G3": ["crossformer", "hpt", "open_x_embodiment"],
+    "G4": ["rt1", "rt2"]
+  },
+  "heldout_groups": ["G3"],
+  "dev_groups": ["G1", "G2", "G4"],
+  "selection_rule": "G3 is the only component with 3 dataset questions (the regressed category) and it also has 2 result questions; held-out ≈ 30% of answerable questions.",
+  "negatives": "neg-01..neg-04 have no gold evidence and are excluded from retrieval metrics in both subsets",
+  "limitations": [
+    "All 42 questions (including G3) were seen when diagnosing the first hybrid design; the choice of BM25 itself was informed by them. The held-out set only guards against tuning the BM25 implementation, k1/b or RRF settings.",
+    "Held-out has 11 answerable questions; a single question moves recall@5 by up to ~0.09. Results are preliminary.",
+    "BM25 parameters are fixed a priori (k1=1.2, b=0.75; RRF k=60, 20 candidates) and must not be changed in response to held-out results."
+  ]
+}
