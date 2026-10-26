@@ -9,9 +9,17 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Menu, Send, Square } from "lucide-react";
+import { BrainCircuit, Menu, Send, Square, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError, ChatMessageItem, streamChat } from "@/lib/api";
+import {
+  ApiError,
+  ChatMessageItem,
+  DocumentItem,
+  MessageSources,
+  citedNumbers,
+  streamChat,
+} from "@/lib/api";
+import { SourceList } from "@/components/Sources";
 import { IconButton } from "@/components/ui/IconButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -24,6 +32,10 @@ interface Props {
   setMessages: Dispatch<SetStateAction<ChatMessageItem[]>>;
   onSessionCreated: (id: number) => void;
   onToggleDrawer: () => void;
+  /** Papers the user ticked in the sidebar; retrieval is restricted to them. */
+  selectedDocs: DocumentItem[];
+  onClearSelection: () => void;
+  agentAvailable: boolean;
 }
 
 export default function ChatPanel({
@@ -33,11 +45,16 @@ export default function ChatPanel({
   setMessages,
   onSessionCreated,
   onToggleDrawer,
+  selectedDocs,
+  onClearSelection,
+  agentAvailable,
 }: Props) {
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [deep, setDeep] = useState(false);
+  const deepMode = deep && agentAvailable;
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -57,6 +74,7 @@ export default function ChatPanel({
 
   async function send() {
     const query = input.trim();
+    const firstQuestion = messages.length === 0;
     if (!query || streaming || !token) return;
 
     setInput("");
@@ -71,20 +89,32 @@ export default function ChatPanel({
     const controller = new AbortController();
     abortRef.current = controller;
     let acc = "";
+    let meta: MessageSources | null = null;
 
     const writeAssistant = (text: string) =>
       setMessages((prev) => {
         const next = [...prev];
-        next[next.length - 1] = { role: "assistant", content: text };
+        const sources = meta
+          ? { ...meta, cited: citedNumbers(text, meta.sources.length) }
+          : null;
+        next[next.length - 1] = { role: "assistant", content: text, sources };
         return next;
       });
 
     try {
       const outcome = await streamChat(
         token,
-        { query, session_id: activeSessionId },
+        {
+          query,
+          session_id: activeSessionId,
+          document_ids: selectedDocs.map((d) => d.id),
+          mode: deepMode ? "agent" : "rag",
+        },
         {
           signal: controller.signal,
+          onSources: (sources, mode) => {
+            meta = { sources, cited: [], invalid: [], mode };
+          },
           onToken: (chunk) => {
             acc += chunk;
             writeAssistant(acc);
@@ -92,7 +122,8 @@ export default function ChatPanel({
         },
       );
       if (!acc) writeAssistant(outcome.text || "_(no response)_");
-      if (!activeSessionId && outcome.sessionId) onSessionCreated(outcome.sessionId);
+      // A new chat, or one created by an upload, is named after its first question: refresh the chat list.
+      if (outcome.sessionId && (!activeSessionId || firstQuestion)) onSessionCreated(outcome.sessionId);
     } catch (err) {
       if (controller.signal.aborted) {
         writeAssistant(acc ? `${acc}\n\n_(stopped)_` : "_(stopped)_");
@@ -116,6 +147,26 @@ export default function ChatPanel({
         <h1 className="min-w-0 flex-1 truncate t-title-m">
           {activeSessionId ? "Conversation" : "New chat"}
         </h1>
+        {selectedDocs.length > 0 && (
+          <span
+            className="inline-flex max-w-[9rem] items-center gap-1 rounded-full bg-md-secondary-container py-1 pl-3 pr-1 t-label-m text-md-on-secondary-container sm:max-w-[16rem]"
+            title={selectedDocs.map((d) => d.title || d.filename).join("\n")}
+          >
+            <span className="truncate">
+              {selectedDocs.length === 1
+                ? selectedDocs[0].title || selectedDocs[0].filename
+                : `${selectedDocs.length} papers selected`}
+            </span>
+            <button
+              type="button"
+              aria-label="Search all papers"
+              onClick={onClearSelection}
+              className="grid h-5 w-5 shrink-0 place-items-center rounded-full hover:bg-md-on-surface/[0.08]"
+            >
+              <X size={12} />
+            </button>
+          </span>
+        )}
         <ThemeToggle className="-mr-1 shrink-0" />
       </header>
 
@@ -131,9 +182,9 @@ export default function ChatPanel({
 
           {!messagesLoading && messages.length === 0 && (
             <div className="mt-16 text-center sm:mt-24">
-              <h2 className="t-headline-s">Ask anything about your documents</h2>
+              <h2 className="t-headline-s">Ask anything about your papers</h2>
               <p className="mt-2 t-body-m text-md-on-surface-variant">
-                Upload files from the menu, then start a conversation.
+                Upload PDFs from the menu — they belong to this chat only. Tick papers to focus on them, or compare two or more.
               </p>
             </div>
           )}
@@ -143,6 +194,7 @@ export default function ChatPanel({
               key={i}
               role={m.role}
               content={m.content}
+              sources={m.sources ?? null}
               pending={
                 streaming &&
                 i === messages.length - 1 &&
@@ -177,11 +229,23 @@ export default function ChatPanel({
                   send();
                 }
               }}
-              placeholder="Message DocuMind…"
+              placeholder="Ask about your papers…"
               aria-label="Message"
               className="max-h-40 min-h-[36px] flex-1 resize-none bg-transparent py-2 t-body-l text-md-on-surface outline-none placeholder:text-md-on-surface-variant"
             />
           </div>
+          {agentAvailable && (
+            <IconButton
+              label={deepMode ? "Deep analysis on" : "Deep analysis off"}
+              variant={deepMode ? "filled" : "standard"}
+              type="button"
+              aria-pressed={deepMode}
+              onClick={() => setDeep((v) => !v)}
+              disabled={streaming}
+            >
+              <BrainCircuit size={18} />
+            </IconButton>
+          )}
           {streaming ? (
             <IconButton
               label="Stop generating"
@@ -203,7 +267,9 @@ export default function ChatPanel({
           )}
         </form>
         <p className="mx-auto mt-2 max-w-3xl text-center t-label-s text-md-on-surface-variant">
-          Answers are generated from your uploaded documents and may be incomplete.
+          {deepMode
+            ? "Deep analysis plans searches across your papers before answering — slower, more thorough."
+            : "Answers cite your uploaded papers as [S1], [S2] … and may be incomplete — check the sources."}
         </p>
       </div>
     </>
@@ -213,10 +279,12 @@ export default function ChatPanel({
 function Message({
   role,
   content,
+  sources,
   pending,
 }: {
   role: "user" | "assistant";
   content: string;
+  sources: MessageSources | null;
   pending: boolean;
 }) {
   const isUser = role === "user";
@@ -250,6 +318,16 @@ function Message({
               <span className="ml-0.5 inline-block motion-safe:animate-blink" aria-hidden>
                 ▋
               </span>
+            )}
+            {sources && !pending && (
+              <>
+                {sources.mode === "agent" && (
+                  <span className="mt-2 inline-flex items-center gap-1 t-label-s text-md-on-surface-variant">
+                    <BrainCircuit size={12} /> Deep analysis
+                  </span>
+                )}
+                <SourceList sources={sources.sources} cited={sources.cited} />
+              </>
             )}
           </div>
         )}

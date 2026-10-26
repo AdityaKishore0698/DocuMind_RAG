@@ -111,13 +111,31 @@ def ollama_settings() -> OllamaSettings:
     return settings
 
 
+def is_local_host(host: Optional[str]) -> bool:
+    """Loopback, Docker's host alias, or a single-label name (a Compose service such as `db`).
+    Hosted databases always have a dotted hostname."""
+    return bool(host) and (host in LOOPBACK_HOSTS or host == "host.docker.internal" or "." not in host
+                           and ":" not in host)
+
+
 def assert_local_database(database_url: Optional[str]) -> None:
-    """Local-model vectors must never be written to a shared database."""
+    """Local-model vectors must never be written to a shared (hosted) database."""
     host = urlparse(database_url or "").hostname
-    if host not in LOOPBACK_HOSTS:
+    if not is_local_host(host):
         raise InferenceConfigError(
-            "INFERENCE_PROVIDER=ollama requires DATABASE_URL on localhost — nomic-embed-text vectors "
-            "are a different embedding space from the Gemini vectors in the shared database")
+            "INFERENCE_PROVIDER=ollama requires a local DATABASE_URL (localhost, host.docker.internal or a "
+            "Compose service) — local embeddings must never be written to a hosted database")
+
+
+def embedding_space() -> str:
+    """Identity of the embedding space the running configuration produces and searches, e.g.
+    `ollama:nomic-embed-text` or `gemini:gemini-embedding-2`. Stored per document at ingestion
+    (`documents.embedding_model`) and used to filter retrieval, so vectors from different models are never
+    compared even when their dimensions match. Must equal worker/inference.py `embedding_space()`."""
+    if provider_name() == "ollama":
+        model = os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text").strip()
+        return f"ollama:{model}" + ("" if _bool_env("OLLAMA_EMBEDDING_PREFIXES", True) else "+noprefix")
+    return "gemini:" + os.getenv("EMBEDDING_MODEL", "gemini-embedding-2").strip()
 
 
 # --- Gemini (unchanged behaviour) --------------------------------------------------------
@@ -163,6 +181,39 @@ class GeminiProvider:
         async for chunk in stream:
             if chunk.text:
                 yield chunk.text
+
+    def complete_json(self, system_prompt: str, user_text: str, schema: dict) -> Optional[dict]:
+        """One structured (JSON) completion for helper steps; None if the output is not a JSON object.
+        HELPER_MODEL (default CHAT_MODEL) lets cheaper models handle planning/assessment (plan §1)."""
+        from google.genai import types
+
+        try:
+            result = self.client().models.generate_content(
+                model=os.getenv("HELPER_MODEL", self.chat_model), contents=user_text,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt + "\n\nRespond with a single JSON object matching this "
+                    "JSON schema:\n" + json.dumps(schema), response_mime_type="application/json", temperature=0))
+        except Exception as exc:  # noqa: BLE001 — classified for the caller, never echoing the prompt
+            raise InferenceUnavailable(f"Gemini structured call failed: {type(exc).__name__}: "
+                                       f"{str(getattr(exc, 'message', '') or '')[:200]}") from exc
+        return _parse_json_object(result.text or "")
+
+
+def _parse_json_object(text: str) -> Optional[dict]:
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`").split("\n", 1)[-1] if "\n" in text else text.strip("`")
+    try:
+        value = json.loads(text)
+    except ValueError:
+        start, end = text.find("{"), text.rfind("}")
+        if start < 0 or end <= start:
+            return None
+        try:
+            value = json.loads(text[start:end + 1])
+        except ValueError:
+            return None
+    return value if isinstance(value, dict) else None
 
 
 # --- Ollama -------------------------------------------------------------------------------
@@ -251,6 +302,24 @@ class OllamaProvider:
                             return
         except httpx.HTTPError as exc:
             raise self._unavailable("chat", exc) from exc
+
+    def complete_json(self, system_prompt: str, user_text: str, schema: dict) -> Optional[dict]:
+        """One structured completion (Ollama `format` = JSON schema); None if not a JSON object."""
+        import httpx
+
+        s = self.settings
+        payload = {"model": s.chat_model, "stream": False, "think": s.think, "keep_alive": s.keep_alive,
+                   "format": schema, "options": {"num_ctx": s.num_ctx, "temperature": 0},
+                   "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_text}]}
+        try:
+            with httpx.Client(timeout=self._timeout(), transport=self._transport, trust_env=False) as client:
+                response = client.post(f"{s.base_url}/api/chat", json=payload)
+        except httpx.HTTPError as exc:
+            raise self._unavailable("structured call", exc) from exc
+        if response.status_code != 200:
+            raise InferenceUnavailable(f"Ollama structured call returned HTTP {response.status_code}: "
+                                       f"{self._error_text(response)}")
+        return _parse_json_object((response.json().get("message") or {}).get("content") or "")
 
 
 # --- selection ----------------------------------------------------------------------------

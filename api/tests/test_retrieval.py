@@ -18,8 +18,12 @@ import pytest
 from sqlalchemy import text
 
 import core.retrieval as R
+from core.inference import embedding_space
 from models.document import Document, DocumentChunk
-from models.user import User
+
+SPACE = embedding_space()
+SID: dict[int, int] = {}  # user id -> the chat holding that user's test library (papers are chat-scoped)  # the default (Gemini) configuration the tests run with
+from models.user import ChatSession, User
 
 from conftest import TEST_DATABASE_URL, TestingSessionLocal, engine
 
@@ -63,9 +67,14 @@ def make_library(db):
         user = User(supabase_uid=str(uuid.uuid4()), email="r@example.com")
         db.add(user)
         db.commit()
+        chat = ChatSession(user_id=user.id, title="library")
+        db.add(chat)
+        db.commit()
+        SID[user.id] = chat.id
         ids = {}
         for name, chunks in docs.items():
-            d = Document(user_id=user.id, filename=name, status="completed")
+            d = Document(user_id=user.id, filename=name, status="completed", embedding_model=SPACE,
+                         session_id=chat.id)
             db.add(d)
             db.flush()
             for content, emb in chunks:
@@ -81,6 +90,7 @@ def make_library(db):
         db.execute(text("DELETE FROM document_chunks WHERE document_id IN (SELECT id FROM documents WHERE user_id = :u)"),
                    {"u": uid})
         db.execute(text("DELETE FROM documents WHERE user_id = :u"), {"u": uid})
+        db.execute(text("DELETE FROM chat_sessions WHERE user_id = :u"), {"u": uid})
         db.execute(text("DELETE FROM users WHERE id = :u"), {"u": uid})
     db.commit()
 
@@ -116,7 +126,7 @@ def test_vector_mode_is_exactly_the_legacy_query(db, make_library, monkeypatch):
     q = vec(1.0, 0.2)
     legacy = db.query(DocumentChunk).join(Document).filter(Document.user_id == uid).order_by(
         DocumentChunk.embedding.cosine_distance(q)).limit(5).all()
-    got = R.retrieve_chunks(db, user_id=uid, query_text="robot policy", query_embedding=q)
+    got = R.retrieve_chunks(db, user_id=uid, query_text="robot policy", query_embedding=q, session_id=SID[uid])
     assert [c.id for c in got] == [c.id for c in legacy] and len(got) == 5
 
 
@@ -163,7 +173,7 @@ def test_hybrid_matches_independent_bm25_rrf(db, make_library, hybrid):
                         ("ALOHA kit cost and CVAE action chunking", vec(0.0, 1.0)),
                         ("robot", vec(0.3, 0.3, 0.3))):
         expected, _ = _reference(db, uid, question, q)
-        got = R.retrieve_chunks(db, user_id=uid, query_text=question, query_embedding=q)
+        got = R.retrieve_chunks(db, user_id=uid, query_text=question, query_embedding=q, session_id=SID[uid])
         assert [c.id for c in got] == expected, question
     assert R.fallback_counts() == {}
 
@@ -172,14 +182,14 @@ def test_hybrid_matches_independent_bm25_rrf(db, make_library, hybrid):
 def test_other_users_never_appear_and_never_change_statistics(db, make_library, hybrid):
     uid, _ = make_library(LIB)
     question, q = "robot trajectories Open X-Embodiment", vec(1.0, 0.2)
-    before = [(r.id, r.vector_rank, r.fts_rank, float(r.rrf_score)) for r in R.hybrid_ranking(db, uid, question, q)]
+    before = [(r.id, r.vector_rank, r.fts_rank, float(r.rrf_score)) for r in R.hybrid_ranking(db, uid, question, q, session_id=SID[uid])]
     other, _ = make_library({"spam.pdf": [("robot robot robot trajectories Open X-Embodiment " * 5, vec(1.0, 0.2))] * 4})
-    after = [(r.id, r.vector_rank, r.fts_rank, float(r.rrf_score)) for r in R.hybrid_ranking(db, uid, question, q)]
+    after = [(r.id, r.vector_rank, r.fts_rank, float(r.rrf_score)) for r in R.hybrid_ranking(db, uid, question, q, session_id=SID[uid])]
     assert after == before                                         # scores and ranks unchanged
     other_ids = {c.id for c in db.query(DocumentChunk).join(Document).filter(Document.user_id == other)}
-    mine = R.retrieve_chunks(db, user_id=uid, query_text=question, query_embedding=q, top_k=20)
+    mine = R.retrieve_chunks(db, user_id=uid, query_text=question, query_embedding=q, top_k=20, session_id=SID[uid])
     assert other_ids and not ({c.id for c in mine} & other_ids)
-    theirs = R.retrieve_chunks(db, user_id=other, query_text=question, query_embedding=q, top_k=20)
+    theirs = R.retrieve_chunks(db, user_id=other, query_text=question, query_embedding=q, top_k=20, session_id=SID[other])
     assert {c.id for c in theirs} <= other_ids
 
 
@@ -187,7 +197,7 @@ def test_document_filter_narrows_candidates_not_statistics(db, make_library, hyb
     uid, ids = make_library(LIB)
     question, q = "robot action", vec(1.0, 0.5)
     _, bm25_all = _reference(db, uid, question, q)
-    rows = R.hybrid_ranking(db, uid, question, q, top_k=20, document_ids=[ids["octo.pdf"]])
+    rows = R.hybrid_ranking(db, uid, question, q, top_k=20, document_ids=[ids["octo.pdf"]], session_id=SID[uid])
     octo_chunks = {c.id for c in db.query(DocumentChunk).filter(DocumentChunk.document_id == ids["octo.pdf"])}
     assert {r.id for r in rows} <= octo_chunks
     fts_order = [r.id for r in sorted((r for r in rows if r.fts_rank), key=lambda r: r.fts_rank)]
@@ -196,23 +206,49 @@ def test_document_filter_narrows_candidates_not_statistics(db, make_library, hyb
 
 
 # --- small libraries and degenerate queries ---------------------------------------------------------------
+@pytest.mark.parametrize("mode", ["vector", "hybrid_bm25"])
+def test_retrieval_is_scoped_to_one_chat_of_the_same_user(db, make_library, monkeypatch, mode):
+    """Papers are chat-scoped: another chat of the SAME user neither appears nor changes BM25 statistics."""
+    monkeypatch.setenv("RETRIEVAL_MODE", mode)
+    uid, ids = make_library(LIB)
+    question, q = "How many robot trajectories was Octo trained on?", vec(0.3, 1.0)
+    before = [(r.id, float(r.rrf_score)) for r in R.hybrid_ranking(db, uid, question, q, session_id=SID[uid])]
+    other_chat = ChatSession(user_id=uid, title="another chat")
+    db.add(other_chat)
+    db.commit()
+    d = Document(user_id=uid, filename="elsewhere.pdf", status="completed", embedding_model=SPACE,
+                 session_id=other_chat.id)
+    db.add(d)
+    db.flush()
+    for _ in range(4):  # a near-identical, lexically dense paper that would otherwise rank first
+        db.add(DocumentChunk(document_id=d.id, content="robot trajectories Octo trained robot " * 5, embedding=q))
+    db.commit()
+    got = R.retrieve_chunks(db, user_id=uid, query_text=question, query_embedding=q, top_k=20, session_id=SID[uid])
+    assert got and d.id not in {c.document_id for c in got}
+    after = [(r.id, float(r.rrf_score)) for r in R.hybrid_ranking(db, uid, question, q, session_id=SID[uid])]
+    assert after == before                                             # statistics unchanged by the other chat
+    there = R.retrieve_chunks(db, user_id=uid, query_text=question, query_embedding=q, top_k=20,
+                              session_id=other_chat.id)
+    assert {c.document_id for c in there} == {d.id}
+
+
 def test_empty_and_tiny_libraries(db, make_library, hybrid):
     empty, _ = make_library({})
-    assert R.retrieve_chunks(db, user_id=empty, query_text="robot", query_embedding=vec(1.0)) == []
+    assert R.retrieve_chunks(db, user_id=empty, query_text="robot", query_embedding=vec(1.0), session_id=SID[empty]) == []
     tiny, _ = make_library({"one.pdf": [("A single chunk about robot grippers.", vec(1.0))]})
-    got = R.retrieve_chunks(db, user_id=tiny, query_text="robot grippers", query_embedding=vec(1.0))
+    got = R.retrieve_chunks(db, user_id=tiny, query_text="robot grippers", query_embedding=vec(1.0), session_id=SID[tiny])
     assert len(got) == 1                                            # N = 1: IDF stays finite, no error
     two, _ = make_library({"two.pdf": [("grippers", vec(1.0)), ("unrelated text", vec(0.0, 1.0))]})
-    got = R.retrieve_chunks(db, user_id=two, query_text="grippers", query_embedding=vec(0.0, 1.0))
+    got = R.retrieve_chunks(db, user_id=two, query_text="grippers", query_embedding=vec(0.0, 1.0), session_id=SID[two])
     assert len(got) == 2 and R.fallback_counts() == {}
 
 
 def test_query_without_lexemes_degrades_to_vector_order(db, make_library, hybrid, monkeypatch):
     uid, _ = make_library(LIB)
     q = vec(0.5, 0.5, 0.1)
-    got = R.retrieve_chunks(db, user_id=uid, query_text="the of and", query_embedding=q)
+    got = R.retrieve_chunks(db, user_id=uid, query_text="the of and", query_embedding=q, session_id=SID[uid])
     monkeypatch.setenv("RETRIEVAL_MODE", "vector")
-    assert [c.id for c in got] == [c.id for c in R.retrieve_chunks(db, user_id=uid, query_text="x", query_embedding=q)]
+    assert [c.id for c in got] == [c.id for c in R.retrieve_chunks(db, user_id=uid, query_text="x", query_embedding=q, session_id=SID[uid])]
     assert R.fallback_counts() == {"no_lexemes": 1}
 
 
@@ -230,8 +266,8 @@ def test_fallback_recovers_the_transaction_and_logs_no_content(db, make_library,
     monkeypatch.setenv("RETRIEVAL_HYBRID_TIMEOUT_MS", timeout_ms)
     original = db.execute(text("SHOW statement_timeout")).scalar()
     with caplog.at_level(logging.WARNING, logger="documind.retrieval"):
-        got = R.retrieve_chunks(db, user_id=uid, query_text=secret, query_embedding=q)
-    legacy = R.vector_chunks(db, uid, q)
+        got = R.retrieve_chunks(db, user_id=uid, query_text=secret, query_embedding=q, session_id=SID[uid])
+    legacy = R.vector_chunks(db, uid, q, session_id=SID[uid])
     assert [c.id for c in got] == [c.id for c in legacy]           # vector fallback
     assert R.fallback_counts() == {reason: 1}
     assert db.execute(text("SHOW statement_timeout")).scalar() == original   # local timeout undone
@@ -245,7 +281,7 @@ def test_fallback_recovers_the_transaction_and_logs_no_content(db, make_library,
 def test_successful_hybrid_restores_statement_timeout(db, make_library, hybrid):
     uid, _ = make_library(LIB)
     original = db.execute(text("SHOW statement_timeout")).scalar()
-    R.retrieve_chunks(db, user_id=uid, query_text="robot", query_embedding=vec(1.0))
+    R.retrieve_chunks(db, user_id=uid, query_text="robot", query_embedding=vec(1.0), session_id=SID[uid])
     assert db.execute(text("SHOW statement_timeout")).scalar() == original
 
 
@@ -263,18 +299,18 @@ def test_insert_update_delete_and_failed_ingestion(db, make_library, hybrid):
     db.commit()
     assert _cols(db, chunk.id)[1] == 7                              # recomputed on UPDATE of content
     # failed ingestion: chunks inserted then rolled back → nothing persists, statistics unchanged
-    before = R.hybrid_ranking(db, uid, "robot", vec(1.0))
+    before = R.hybrid_ranking(db, uid, "robot", vec(1.0), session_id=SID[uid])
     doc = Document(user_id=uid, filename="failed.pdf", status="processing")
     db.add(doc)
     db.flush()
     db.add(DocumentChunk(document_id=doc.id, content="robot " * 50, embedding=vec(1.0)))
     db.flush()
     db.rollback()
-    assert [tuple(r) for r in R.hybrid_ranking(db, uid, "robot", vec(1.0))] == [tuple(r) for r in before]
+    assert [tuple(r) for r in R.hybrid_ranking(db, uid, "robot", vec(1.0), session_id=SID[uid])] == [tuple(r) for r in before]
     # deletion via the API's ORM cascade → chunks gone, statistics change at commit
     db.delete(db.get(Document, ids["doc.pdf"]))
     db.commit()
-    assert R.hybrid_ranking(db, uid, "robot", vec(1.0)) == []
+    assert R.hybrid_ranking(db, uid, "robot", vec(1.0), session_id=SID[uid]) == []
 
 
 # --- migration ------------------------------------------------------------------------------------------------------
@@ -316,18 +352,19 @@ def test_chat_endpoint_in_hybrid_mode(auth_client, hybrid, monkeypatch, db):
             return vec(1.0, 0.2)
 
         async def stream_chat(self, system_prompt, history, query):
-            assert "trajectories" in system_prompt                  # retrieved context reached the prompt
+            assert "trajectories" in query                          # retrieved context reached the prompt
             yield "ok"
 
     monkeypatch.setattr(chat_router, "get_provider", lambda: FakeProvider())
     me = auth_client.get("/chat/sessions")                          # creates the local user row
     assert me.status_code == 200
     uid = db.query(User).order_by(User.id.desc()).first().id
-    d = Document(user_id=uid, filename="octo.pdf", status="completed")
+    sid = auth_client.post("/chat/sessions", json={"title": "t"}).json()["id"]
+    d = Document(user_id=uid, filename="octo.pdf", status="completed", embedding_model=SPACE, session_id=sid)
     db.add(d)
     db.flush()
     db.add(DocumentChunk(document_id=d.id, content=LIB["octo.pdf"][0][0], embedding=LIB["octo.pdf"][0][1]))
     db.commit()
-    res = auth_client.post("/chat/chat", json={"query": "How many trajectories?"})
+    res = auth_client.post("/chat/chat", json={"query": "How many trajectories?", "session_id": sid})
     assert res.status_code == 200 and res.text == "ok"
     assert R.fallback_counts() == {}

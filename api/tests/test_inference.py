@@ -80,8 +80,42 @@ def test_chat_model_is_required(monkeypatch):
 def test_ollama_refuses_a_non_local_database(monkeypatch, url):
     monkeypatch.setenv("INFERENCE_PROVIDER", "ollama")
     monkeypatch.setenv("DATABASE_URL", url)
-    with pytest.raises(inf.InferenceConfigError, match="embedding space"):
+    with pytest.raises(inf.InferenceConfigError, match="hosted database"):
         inf.get_provider()
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "host.docker.internal", "db"])
+def test_local_database_hosts_are_accepted(monkeypatch, host):
+    monkeypatch.setenv("INFERENCE_PROVIDER", "ollama")
+    monkeypatch.setenv("DATABASE_URL", f"postgresql://u:p@{host}:5432/postgres")
+    assert inf.get_provider().name == "ollama"
+
+
+def test_embedding_space_identifies_provider_model_and_prefixing(monkeypatch):
+    monkeypatch.delenv("INFERENCE_PROVIDER", raising=False)
+    monkeypatch.delenv("EMBEDDING_MODEL", raising=False)
+    assert inf.embedding_space() == "gemini:gemini-embedding-2"
+    monkeypatch.setenv("INFERENCE_PROVIDER", "ollama")
+    assert inf.embedding_space() == "ollama:nomic-embed-text"
+    monkeypatch.setenv("OLLAMA_EMBEDDING_PREFIXES", "false")       # different vectors → a different space
+    assert inf.embedding_space() == "ollama:nomic-embed-text+noprefix"
+
+
+def test_api_and_worker_agree_on_the_embedding_space(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location(
+        "worker_inference", Path(__file__).resolve().parents[2] / "worker" / "inference.py")
+    worker_inf = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(worker_inf)
+    for env in ({}, {"INFERENCE_PROVIDER": "ollama"}, {"INFERENCE_PROVIDER": "ollama", "OLLAMA_EMBEDDING_MODEL": "m"},
+                {"INFERENCE_PROVIDER": "ollama", "OLLAMA_EMBEDDING_PREFIXES": "0"}, {"EMBEDDING_MODEL": "x"}):
+        for key in ("INFERENCE_PROVIDER", "OLLAMA_EMBEDDING_MODEL", "OLLAMA_EMBEDDING_PREFIXES", "EMBEDDING_MODEL"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        assert inf.embedding_space() == worker_inf.embedding_space(), env
 
 
 def test_invalid_ollama_settings(monkeypatch):

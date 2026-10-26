@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ArrowDownToLine,
+  Columns3,
   FileText,
   LogOut,
   MessageSquarePlus,
   MessageSquare,
+  RotateCcw,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -18,10 +21,14 @@ import { useAuth } from "@/lib/auth-context";
 import {
   ChatSessionItem,
   DocumentItem,
+  assignDocument,
+  createSession,
   deleteAccount,
   deleteDocument,
   deleteSession,
   listDocuments,
+  listUnassignedDocuments,
+  reprocessDocument,
   renameSession,
   uploadDocuments,
 } from "@/lib/api";
@@ -45,6 +52,13 @@ interface Props {
   onOpenSession: (id: number) => void;
   onSessionsChanged: () => void;
   onSessionRemoved: (id: number) => void;
+  /** A chat was created here (by uploading papers before asking anything). */
+  onSessionCreated: (id: number) => void;
+  /** Papers ticked for focused chat / comparison. */
+  selectedIds: number[];
+  onToggleSelect: (id: number) => void;
+  onDocsChanged: (docs: DocumentItem[]) => void;
+  onOpenCompare: () => void;
 }
 
 const STATUS: Record<string, { label: string; className: string }> = {
@@ -66,13 +80,22 @@ export default function Sidebar({
   onOpenSession,
   onSessionsChanged,
   onSessionRemoved,
+  onSessionCreated,
+  selectedIds,
+  onToggleSelect,
+  onDocsChanged,
+  onOpenCompare,
 }: Props) {
   const { session, signOut } = useAuth();
   const token = session?.access_token ?? null;
   const toast = useToast();
 
+  // Papers are chat-scoped: the list shows only the active chat's papers (none for a new chat).
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
+  const [legacy, setLegacy] = useState<DocumentItem[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<ChatSessionItem | null>(null);
+  const [deletingChat, setDeletingChat] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -80,16 +103,31 @@ export default function Sidebar({
   const [deletingAcct, setDeletingAcct] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const refreshDocs = useCallback(async () => {
+  // The chat currently shown; async refreshes for a chat that is no longer active are discarded.
+  const activeRef = useRef(activeSessionId);
+  useEffect(() => {
+    activeRef.current = activeSessionId;
+  }, [activeSessionId]);
+
+  /** `sessionId` defaults to the active chat; an upload that just created a chat passes its new id, because this
+   *  callback's closure may still hold the previous (null) chat. */
+  const refreshDocs = useCallback(async (sessionId: number | null = activeSessionId) => {
     if (!token) return;
     try {
-      setDocs(await listDocuments(token));
+      const [list, unassigned] = await Promise.all([
+        sessionId === null ? Promise.resolve([]) : listDocuments(token, sessionId),
+        listUnassignedDocuments(token),
+      ]);
+      setLegacy(unassigned);
+      if (sessionId !== activeRef.current) return;
+      setDocs(list);
+      onDocsChanged(list);
     } catch {
       /* 401 handled globally */
     } finally {
       setDocsLoading(false);
     }
-  }, [token]);
+  }, [token, activeSessionId, onDocsChanged]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -107,13 +145,21 @@ export default function Sidebar({
     if (!token || !files || files.length === 0) return;
     setUploading(true);
     try {
-      const results = await uploadDocuments(token, Array.from(files));
+      // A new chat gets created by its first upload, so the papers belong to it from the start.
+      let sessionId = activeSessionId;
+      if (sessionId === null) {
+        sessionId = (await createSession(token, "New chat")).id;
+        onSessionCreated(sessionId);
+      }
+      const results = await uploadDocuments(token, sessionId, Array.from(files));
+      activeRef.current = sessionId; // the parent switches to the new chat; don't wait for the next render
       toast.success(
         results.length === 1
           ? `“${results[0].filename}” uploaded — processing now.`
           : `${results.length} files uploaded — processing now.`,
       );
-      await refreshDocs();
+      await refreshDocs(sessionId);
+      onSessionsChanged(); // paper counts shown when deleting a chat
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -122,12 +168,28 @@ export default function Sidebar({
     }
   }
 
-  async function removeDoc(id: number, name: string) {
+  async function reprocess(id: number, name: string) {
+    if (!token || activeSessionId === null) return;
+    try {
+      await reprocessDocument(token, id, activeSessionId);
+      toast.success(`Re-processing “${name}”.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not re-process that document.");
+    } finally {
+      refreshDocs();
+    }
+  }
+
+  async function removeDoc(id: number, name: string, sessionId: number | null) {
     if (!token) return;
     setDocs((prev) => prev.filter((d) => d.id !== id));
+    setLegacy((prev) => prev.filter((d) => d.id !== id));
+    if (selectedIds.includes(id)) onToggleSelect(id);
     try {
-      await deleteDocument(token, id);
-      toast.success(`Removed “${name}”.`);
+      const result = await deleteDocument(token, id, sessionId);
+      if (result?.files_not_removed) toast.error(`Removed “${name}”, but its stored file could not be deleted.`);
+      else toast.success(`Removed “${name}”.`);
+      onSessionsChanged();
     } catch {
       toast.error("Could not remove that document.");
     } finally {
@@ -148,12 +210,40 @@ export default function Sidebar({
     }
   }
 
-  async function removeSession(id: number) {
-    if (!token) return;
+  async function moveHere(id: number, name: string) {
+    if (!token || activeSessionId === null) return;
     try {
-      await deleteSession(token, id);
+      await assignDocument(token, id, activeSessionId);
+      toast.success(`Moved “${name}” into this chat.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not move that paper.");
     } finally {
+      refreshDocs();
+      onSessionsChanged();
+    }
+  }
+
+  async function confirmDeleteChat() {
+    if (!token || !pendingDelete) return;
+    const id = pendingDelete.id;
+    setDeletingChat(true);
+    try {
+      const result = await deleteSession(token, id);
+      if (result?.files_not_removed) {
+        toast.error(
+          `Chat deleted, but ${result.files_not_removed} stored file${result.files_not_removed === 1 ? "" : "s"} could not be removed.`,
+        );
+      } else {
+        toast.success("Chat deleted.");
+      }
       onSessionRemoved(id);
+    } catch (err) {
+      // Nothing was deleted: stay in the chat and say so, rather than navigating away as if it had worked.
+      toast.error(err instanceof Error ? `Could not delete the chat: ${err.message}` : "Could not delete the chat.");
+      onSessionsChanged();
+    } finally {
+      setDeletingChat(false);
+      setPendingDelete(null);
     }
   }
 
@@ -193,11 +283,11 @@ export default function Sidebar({
         {/* Full sidebar — always shown on mobile; on desktop only when expanded */}
         <div className={cn("flex min-h-0 flex-1 flex-col", collapsed && "md:hidden")}>
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
-          <span className="t-title-l">DocuMind</span>
+          <span className="t-title-l">ResearchLens</span>
           <div className="flex items-center gap-1">
             <IconButton
               label="Collapse sidebar"
-              className="hidden md:inline-grid"
+              className="max-md:hidden"
               onClick={onToggleCollapsed}
             >
               <PanelLeftClose size={20} />
@@ -212,7 +302,7 @@ export default function Sidebar({
           {/* Knowledge base */}
           <section aria-labelledby="kb-heading">
             <h2 id="kb-heading" className="px-2 t-label-m uppercase text-md-on-surface-variant">
-              Knowledge base
+              Papers in this chat
             </h2>
             <input
               ref={fileInputRef}
@@ -232,6 +322,22 @@ export default function Sidebar({
             >
               {uploading ? "Uploading…" : "Upload PDF or TXT"}
             </Button>
+            {selectedIds.length > 0 && (
+              <Button
+                variant="outlined"
+                fullWidth
+                leadingIcon={<Columns3 size={18} />}
+                disabled={selectedIds.length < 2 || selectedIds.length > 6}
+                onClick={onOpenCompare}
+                className="mt-2"
+              >
+                {selectedIds.length < 2
+                  ? "Tick another paper to compare"
+                  : selectedIds.length > 6
+                    ? "Compare up to 6 papers"
+                    : `Compare ${selectedIds.length} papers`}
+              </Button>
+            )}
 
             <ul className="mt-3 space-y-0.5">
               {docsLoading &&
@@ -242,7 +348,9 @@ export default function Sidebar({
                 ))}
               {!docsLoading && docs.length === 0 && (
                 <li className="px-2 py-2 t-body-m text-md-on-surface-variant">
-                  No documents yet.
+                  {activeSessionId === null
+                    ? "Upload papers to start a chat. Papers stay in the chat they are uploaded in."
+                    : "No papers in this chat yet. Papers uploaded here are only used in this chat."}
                 </li>
               )}
               {docs.map((doc) => {
@@ -250,21 +358,61 @@ export default function Sidebar({
                   label: doc.status,
                   className: "bg-md-surface-container-high text-md-on-surface-variant",
                 };
+                const otherSpace = doc.status === "completed" && doc.searchable === false;
+                const ready = doc.status === "completed" && !otherSpace;
+                const name = doc.title || doc.filename;
+                const byline = [doc.authors, doc.year].filter(Boolean).join(" · ");
+                const note = otherSpace
+                  ? `Embedded with ${doc.embedding_model ?? "an unknown model"} — re-process to search it`
+                  : doc.error;
                 return (
                   <li
                     key={doc.id}
                     className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-md-on-surface/[0.05]"
                   >
-                    <FileText size={16} className="shrink-0 text-md-on-surface-variant" />
-                    <span className="min-w-0 flex-1 truncate t-body-m" title={doc.filename}>
-                      {doc.filename}
+                    {ready ? (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(doc.id)}
+                        onChange={() => onToggleSelect(doc.id)}
+                        aria-label={`Select ${name}`}
+                        className="h-4 w-4 shrink-0 accent-[var(--md-primary)]"
+                      />
+                    ) : (
+                      <FileText size={16} className="shrink-0 text-md-on-surface-variant" />
+                    )}
+                    <span
+                      className="min-w-0 flex-1"
+                      title={[name, byline, doc.filename, note].filter(Boolean).join("\n")}
+                    >
+                      <span className="block truncate t-body-m">{name}</span>
+                      {(byline || note) && (
+                        <span
+                          className={cn(
+                            "block truncate t-body-s",
+                            note ? "text-md-error" : "text-md-on-surface-variant",
+                          )}
+                        >
+                          {note || byline}
+                        </span>
+                      )}
                     </span>
-                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 t-label-s", s.className)}>
-                      {s.label}
-                    </span>
+                    {otherSpace || doc.status === "failed" ? (
+                      <button
+                        type="button"
+                        onClick={() => reprocess(doc.id, name)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-md-error-container px-2 py-0.5 t-label-s text-md-on-error-container hover:opacity-90"
+                      >
+                        <RotateCcw size={12} /> Re-process
+                      </button>
+                    ) : (
+                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 t-label-s", s.className)}>
+                        {s.label}
+                      </span>
+                    )}
                     <IconButton
                       label={`Remove ${doc.filename}`}
-                      onClick={() => removeDoc(doc.id, doc.filename)}
+                      onClick={() => removeDoc(doc.id, doc.filename, activeSessionId)}
                       className="h-8 w-8 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
                     >
                       <Trash2 size={15} />
@@ -274,6 +422,50 @@ export default function Sidebar({
               })}
             </ul>
           </section>
+
+          {/* Papers uploaded before papers belonged to chats: searched nowhere until moved into one */}
+          {legacy.length > 0 && (
+            <section aria-labelledby="legacy-heading">
+              <h2 id="legacy-heading" className="px-2 t-label-m uppercase text-md-on-surface-variant">
+                Earlier papers (not in a chat)
+              </h2>
+              <p className="px-2 pt-1 t-body-s text-md-on-surface-variant">
+                Uploaded before papers belonged to chats. They are not searched until you move one into a chat.
+              </p>
+              <ul className="mt-2 space-y-0.5">
+                {legacy.map((doc) => {
+                  const name = doc.title || doc.filename;
+                  return (
+                    <li
+                      key={doc.id}
+                      className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-md-on-surface/[0.05]"
+                    >
+                      <FileText size={16} className="shrink-0 text-md-on-surface-variant" />
+                      <span className="min-w-0 flex-1 truncate t-body-m" title={name}>
+                        {name}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={activeSessionId === null}
+                        title={activeSessionId === null ? "Open or start a chat first" : "Move into this chat"}
+                        onClick={() => moveHere(doc.id, name)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-md-secondary-container px-2 py-0.5 t-label-s text-md-on-secondary-container hover:opacity-90 disabled:opacity-40"
+                      >
+                        <ArrowDownToLine size={12} /> Move here
+                      </button>
+                      <IconButton
+                        label={`Remove ${doc.filename}`}
+                        onClick={() => removeDoc(doc.id, doc.filename, null)}
+                        className="h-8 w-8 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+                      >
+                        <Trash2 size={15} />
+                      </IconButton>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
           {/* Chats */}
           <section aria-labelledby="chats-heading">
@@ -346,7 +538,7 @@ export default function Sidebar({
                       </IconButton>
                       <IconButton
                         label="Delete chat"
-                        onClick={() => removeSession(sn.id)}
+                        onClick={() => setPendingDelete(sn)}
                         className="h-8 w-8 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
                       >
                         <Trash2 size={14} />
@@ -427,6 +619,24 @@ export default function Sidebar({
           </div>
         )}
       </nav>
+
+      <Dialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        title="Delete this chat?"
+        confirmLabel="Delete chat"
+        destructive
+        loading={deletingChat}
+        onConfirm={confirmDeleteChat}
+      >
+        {pendingDelete?.paper_count
+          ? `This permanently deletes the chat, its conversation history, ${
+              pendingDelete.paper_count === 1
+                ? "the paper uploaded in it and its stored file"
+                : `the ${pendingDelete.paper_count} papers uploaded in it and their stored files`
+            }. Papers in other chats are not affected. This cannot be undone.`
+          : "This permanently deletes the chat and its conversation history. It has no papers. This cannot be undone."}
+      </Dialog>
 
       <Dialog
         open={deleteAcctOpen}

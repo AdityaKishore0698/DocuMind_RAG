@@ -27,3 +27,6 @@ pyjwt[cryptography]
 # Document processing
 PyPDF2
 langchain-text-splitters
+
+# Deep-analysis agent (AGENT_ENABLED; imported lazily)
+langgraph==1.2.15

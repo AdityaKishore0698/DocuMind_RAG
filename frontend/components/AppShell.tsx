@@ -1,15 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
   ChatMessageItem,
   ChatSessionItem,
+  DocumentItem,
+  getCapabilities,
   getSessionMessages,
   listSessions,
 } from "@/lib/api";
 import Sidebar from "@/components/Sidebar";
 import ChatPanel from "@/components/ChatPanel";
+import ComparePanel from "@/components/ComparePanel";
+import { cn } from "@/lib/cn";
 
 export default function AppShell() {
   const { session } = useAuth();
@@ -20,6 +24,29 @@ export default function AppShell() {
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [docs, setDocs] = useState<DocumentItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [view, setView] = useState<"chat" | "compare">("chat");
+  // Once opened, the comparison stays mounted so its (slow) results survive a trip back to the chat.
+  const [compareOpened, setCompareOpened] = useState(false);
+  const [agentAvailable, setAgentAvailable] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    getCapabilities(token)
+      .then((c) => setAgentAvailable(c.agent))
+      .catch(() => setAgentAvailable(false));
+  }, [token]);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  // Only ready papers can stay selected (a deleted or failed paper drops out).
+  const selectedDocs = useMemo(
+    () => docs.filter((d) => d.status === "completed" && d.searchable !== false && selectedIds.includes(d.id)),
+    [docs, selectedIds],
+  );
   // Desktop-only: the permanent sidebar can be collapsed to an icon rail.
   // Mobile keeps the modal-drawer behaviour untouched.
   const [railCollapsed, setRailCollapsed] = useState<boolean>(() => {
@@ -65,7 +92,11 @@ export default function AppShell() {
   const openSession = useCallback(
     async (id: number) => {
       if (!token) return;
+      setView("chat");
       setActiveSessionId(id);
+      // Papers are chat-scoped: neither a selection nor a comparison carries over to another chat.
+      setSelectedIds([]);
+      setCompareOpened(false);
       setDrawerOpen(false);
       setMessagesLoading(true);
       try {
@@ -80,7 +111,10 @@ export default function AppShell() {
   );
 
   const newChat = useCallback(() => {
+    setView("chat");
     setActiveSessionId(null);
+    setSelectedIds([]);
+    setCompareOpened(false);
     setMessages([]);
     setDrawerOpen(false);
   }, []);
@@ -115,18 +149,43 @@ export default function AppShell() {
         onOpenSession={openSession}
         onSessionsChanged={refreshSessions}
         onSessionRemoved={handleSessionRemoved}
+        onSessionCreated={handleSessionCreated}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onDocsChanged={setDocs}
+        onOpenCompare={() => {
+          setView("compare");
+          setCompareOpened(true);
+          setDrawerOpen(false);
+        }}
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <ChatPanel
-          key={activeSessionId ?? "new"}
-          activeSessionId={activeSessionId}
-          messages={messages}
-          messagesLoading={messagesLoading}
-          setMessages={setMessages}
-          onSessionCreated={handleSessionCreated}
-          onToggleDrawer={() => setDrawerOpen((v) => !v)}
-        />
+        {compareOpened && activeSessionId !== null && (
+          <div className={cn("flex min-h-0 flex-1 flex-col", view !== "compare" && "hidden")}>
+            <ComparePanel
+              key={activeSessionId}
+              sessionId={activeSessionId}
+              selectedDocs={selectedDocs}
+              onBack={() => setView("chat")}
+              onToggleDrawer={() => setDrawerOpen((v) => !v)}
+            />
+          </div>
+        )}
+        <div className={cn("flex min-h-0 flex-1 flex-col", view !== "chat" && "hidden")}>
+          <ChatPanel
+            key={activeSessionId ?? "new"}
+            activeSessionId={activeSessionId}
+            messages={messages}
+            messagesLoading={messagesLoading}
+            setMessages={setMessages}
+            onSessionCreated={handleSessionCreated}
+            onToggleDrawer={() => setDrawerOpen((v) => !v)}
+            selectedDocs={selectedDocs}
+            onClearSelection={() => setSelectedIds([])}
+            agentAvailable={agentAvailable}
+          />
+        </div>
       </main>
     </div>
   );

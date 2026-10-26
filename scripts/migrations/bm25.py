@@ -89,7 +89,7 @@ def status(conn) -> dict:
                 "complete": len(columns) == 2 and trigger and _index_state(cur) == "valid" and nulls == 0}
 
 
-def up(conn, batch: int = BATCH, log=print) -> dict:
+def up(conn, batch: int = BATCH, log=print, **_) -> dict:
     with conn.cursor() as cur:
         _ddl(cur, TOKEN_COUNT_FN)
         _ddl(cur, "ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS content_tsv tsvector, "
