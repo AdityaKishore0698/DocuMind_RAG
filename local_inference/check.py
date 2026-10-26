@@ -104,7 +104,7 @@ def stage_rag(provider, database_url: str) -> dict:
     conn.commit()
     conn.close()
     context = "\n\n".join(r[1] for r in rows)
-    system = ("You are DocuMind, an assistant that answers questions using the user's uploaded documents. "
+    system = ("You are ResearchLens, an assistant that answers questions using the user's uploaded documents. "
               "Rely on the context below; if it does not contain the answer, say so.\n\n"
               f"Context from documents:\n{context}")
     gen = asyncio.run(_stream(provider, system, RAG_QUESTION))

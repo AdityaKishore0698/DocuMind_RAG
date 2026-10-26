@@ -34,3 +34,6 @@ CHANGE_AUDIT.md
 evaluation/data/
 evaluation/results/runs/
 evaluation/results/human_review/
+# Personal planning / interview material — never published
+docs/interview-prep/
+docs/*.docx

@@ -159,3 +159,63 @@ Each entry: decision · alternatives · why · trade-off. Only decisions actuall
 * **Why:** exact equivalence with the evaluated configuration, no cross-tenant statistics, nothing to refresh, no
   long table locks (measured), instant rollback by flag.
 * **Validated locally only** (proposal §8); production migration/deploy not approved.
+
+## Research-paper analyst in the application (plan Phases 1–5)
+
+### TD-20 Migrate in place instead of the plan's clean reset
+* **Decision:** additive migration `002_provenance` (nullable columns, concurrent indexes, FK swapped via `NOT VALID` +
+  `VALIDATE`, short `lock_timeout`, idempotent, `down` provided) plus a startup schema check, instead of wiping
+  production. `init_db.sql` matches the migrated schema for new databases.
+* **Why:** keeps users' data, needs no maintenance window, and old code keeps working on the new schema, so code
+  rollback never requires a schema rollback. Old documents simply lack provenance until re-uploaded.
+
+### TD-21 Page/section-aware chunking with the same splitter
+* **Decision:** keep `RecursiveCharacterTextSplitter(1000, 100)` but apply it within page and section spans; store
+  page, section and position per chunk; detect headings with conservative rules (canonical names, small caps,
+  run-in, numbered paper-specific titles) rather than a layout model.
+* **Why:** page numbers are what citations need; the splitter stays the evaluated one, so retrieval differences
+  come from boundaries only (measured as System PL, see evaluation.md). A layout parser (GROBID, Nougat) would be
+  more accurate but adds a heavy service.
+
+### TD-22 Citations are numbered sources chosen before generation
+* **Decision:** `[S#]` labels on retrieved chunks, sent to the client in `X-Sources` before the first token and
+  stored with the message with the parsed markers; invalid markers are recorded, not hidden.
+* **Why:** streaming stays plain text; the client can render sources immediately; code can check that a marker
+  names a supplied source (support itself is not machine-verified — stated in the UI).
+
+### TD-23 The agent ships behind a flag, with deterministic coverage and balanced context
+* **Decision:** port the evaluated graph (TD-17) without its synthesis/verify nodes — the endpoint streams the
+  synthesis and checks citations — and add a deterministic coverage step plus round-robin context slots per
+  selected paper; time budget 60 s; any graph error falls back to plain RAG. `AGENT_ENABLED=false` by default.
+* **Why:** TD-17 measured no retrieval gain at ~2–3× tokens and latency, so it is opt-in. Coverage and balanced
+  slots address the failure the evaluation exposed for cross-paper questions (one paper crowding out the other):
+  in the local end-to-end run, the first version gave 4 of 5 slots to one paper; round-robin fixed it.
+
+### TD-24 Structured analysis = one JSON call per paper, validated in code
+* **Decision:** comparisons call the model once per paper with that paper's sources only, then validate: unknown
+  or missing citations turn the value into "not reported in the paper". Gaps use one call over all papers and
+  drop uncited gaps.
+* **Why:** per-paper calls make cross-paper attribution errors impossible by construction and let one paper fail
+  without sinking the table; validation in code is cheaper and more predictable than an LLM verifier.
+
+### TD-25 Gap scope is decided by citations, not by the model
+* **Decision:** the gap prompt groups evidence by paper and asks for cross-paper gaps first, but the label shown to
+  users comes from code: a gap whose valid citations span ≥ 2 papers is a *cross-paper hypothesis*, one paper is a
+  *single-paper observation*. One bounded follow-up call (only when nothing crossed papers and ≥ 2 papers had
+  evidence) asks the model to link the single-paper observations. Caps 5 + 3.
+* **Why:** the local run (F-19) showed the model calling restated single-paper limitations "gaps"; a
+  model-written label cannot be trusted, citations can be checked. The follow-up costs one extra call only in the
+  failure case. Whether a cited cross-paper gap is *meaningful* is still not machine-checked.
+
+### TD-26 Papers belong to the chat they were uploaded in
+* **Decision:** `documents.session_id` (nullable FK to `chat_sessions`, ON DELETE CASCADE, migration 004); one
+  paper belongs to exactly one chat. Every paper endpoint and retrieval query filters on user **and** chat
+  (`session_id` is a required keyword argument of the retrieval functions, so a new call site cannot forget it).
+  Deleting a chat deletes its papers and stored files.
+* **Legacy papers:** no backfill. Rows created before the migration keep `session_id = NULL`, are searched in no
+  chat, and are listed separately so the user can move each into one chosen chat. Guessing a chat (newest, first)
+  would silently mix papers into conversations they were never part of.
+* **Alternatives not taken:** a many-to-many chat↔paper table (sharing one paper across chats). It is more
+  flexible, but adds a join to every query and makes "deleting a chat" ambiguous. Re-uploading a paper in another
+  chat is cheap with local embeddings.
+* **Trade-off:** BM25 statistics are now computed per chat rather than per user (smaller corpus, same formula).

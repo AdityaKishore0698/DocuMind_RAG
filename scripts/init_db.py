@@ -1,4 +1,4 @@
-"""Reset the DocuMind schema in the database at DATABASE_URL.
+"""Reset the ResearchLens schema in the database at DATABASE_URL.
 
 DESTRUCTIVE: drops and recreates every table (the Supabase Auth switch changed
 the `users` table). Reads DATABASE_URL from the environment.
@@ -21,7 +21,7 @@ import models.document  # noqa: E402,F401  registers documents / document_chunks
 
 
 def main() -> None:
-    print("Dropping and recreating all DocuMind tables ...")
+    print("Dropping and recreating all ResearchLens tables ...")
     Base.metadata.drop_all(bind=engine)
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))

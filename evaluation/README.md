@@ -1,4 +1,7 @@
-# DocuMind evaluation harness
+# ResearchLens evaluation harness
+
+(The harness predates the rename from DocuMind; database names such as `documind_eval` and the frozen
+baseline prompts keep the old name on purpose, so earlier runs stay reproducible.)
 
 Reproducible benchmark for comparing:
 

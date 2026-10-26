@@ -1,96 +1,115 @@
-# Local inference (Ollama) — experimental
+# Local inference (Ollama)
 
-Gemini remains the default; nothing changes unless `INFERENCE_PROVIDER=ollama`. Same code, two
-environments, selected only by environment files (no model names hard-coded in the app):
+ResearchLens's default setup (see the main [README](../README.md#quick-start-local-no-api-keys)) runs all model calls
+through a local [Ollama](https://ollama.com) server:
 
-| | Lab server (`<lab-host>`) | Mac (development) |
-|---|---|---|
-| Branch | `feature/local-inference-qwen3-14b` | `feature/local-inference-qwen3-8b-mac` |
-| Template | `env.example` → `.env.lab` | `env.mac.example` → `.env.mac` |
-| Generation | `qwen3:14b` (Q4_K_M, installed) | `qwen3:8b` (Q4_K_M, installed, verified) |
-| Embeddings | `nomic-embed-text` | `nomic-embed-text` |
-| Endpoint | `127.0.0.1:11435` → SSH tunnel → <lab-host>'s system Ollama | `127.0.0.1:11434`, the Mac's own Ollama |
-| Database | isolated local pgvector, port 5436 | same |
+| Role | Variable | Default |
+| --- | --- | --- |
+| Document and query embeddings (768-d) | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` |
+| Answers, comparisons, research gaps, deep-analysis planning/assessment (JSON) | `OLLAMA_CHAT_MODEL` | `qwen3:8b` |
 
-`OLLAMA_CHAT_MODEL` is required (no default) so a machine can't silently load the wrong model.
-Both `.env.lab` and `.env.mac` are git-ignored (`.env.*`).
+The provider boundary is `api/core/inference.py` (chat, structured JSON, query embeddings) and
+`worker/inference.py` (batched document embeddings). There is no silent fallback: if Ollama is unreachable the
+request fails with a clear error (`/health` shows why).
 
-## Mac status (verified 2026-10-15, MacBook Air M2, 16 GB unified memory)
-* **Ollama 0.40.4** via Homebrew (`brew install ollama`, pulled the `mlx` dependency), run as a user
-  launchd service: `brew services start|stop ollama`; listens on 127.0.0.1:11434 only. The service sets
-  `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0` (Homebrew defaults; the lab server's do not).
-  The old dangling `/usr/local/bin/ollama` symlink (root-owned) was left alone; `/opt/homebrew/bin` wins in PATH.
-* **Models** (`ollama list`): `qwen3:8b` `500a1f067a9f` 5.2 GB (8.2B, Q4_K_M, 36 layers, 8 KV heads, ctx 40,960);
-  `nomic-embed-text` `0a109f422b47` 274 MB (F16, 768-d, ctx 2,048); pre-existing `llama3` kept.
-* **Download note:** `ollama pull` cannot work on this network (direct HTTPS is blocked; Ollama 0.40.4
-  opens direct connections to the blob CDN even with `HTTPS_PROXY` set). The models were fetched from
-  `registry.ollama.ai` with curl through the proxy, every blob sha256-verified, and written into
-  `~/.ollama/models` in the registry layout (manifest last): `local_inference/fetch_model_via_proxy.sh qwen3 8b`.
-  See docs/failure-analysis.md F-12.
-* **Checks** (`.env.mac`): metadata ✅ · `--embed` ✅ · `--generate` ✅ · `--rag` ✅ — numbers below.
+This folder holds an optional diagnostic tool and templates for running it outside Docker.
 
-| Stage | Result |
-|---|---|
-| `--embed` (cold, incl. model load) | 768 dims, all finite, L2 norm 1.0, 0.97 s; nomic resident 0.38 GB |
-| `--generate` (cold, incl. loading qwen3:8b) | TTFT 11.43 s, total 13.04 s, 106 chars, coherent; qwen3:8b resident 5.63 GB |
-| `--rag` (models warm) | correct doc ranked 1st (cosine distance 0.100 vs 0.328), grounded answer, TTFT 1.07 s, total 2.90 s |
-| Memory | free 58 % → 20 % with both models loaded; macOS pressure level 2 (warn, not critical); swap 0.37 → 1.54 GB; after unload level 1, 70 % free |
+## Hardware and measured performance
 
-Single runs on synthetic data — smoke tests, not benchmarks.
+Measured on a MacBook Air M2 with 16 GB unified memory, Ollama 0.40 (Metal):
 
-## Environment (on the Mac, where the app and tests run)
+| Step | Result |
+| --- | --- |
+| Memory with both models loaded | ~5.6 GB (`qwen3:8b`) + ~0.4 GB (`nomic-embed-text`) |
+| First generation after a cold start | ~11 s to the first token (model load) |
+| Ingest two papers (37 pages, 227 chunks) | ~13 s |
+| Cited answer | 25–45 s |
+| Two-paper comparison / gap analysis | ~70 s each |
+
+* **16 GB of RAM or VRAM** is comfortable for `qwen3:8b`.
+* With 8 GB, try `qwen3:4b` (untested here).
+* `qwen3:14b` needs ~11 GB of VRAM. It was downloaded on a shared lab GPU server, but inference with it was
+  **not tested**: the GPU lacked headroom, and later SSH access to the server timed out.
+* CPU-only machines work but take minutes per answer.
+
+## Embedding spaces
+
+Changing `OLLAMA_EMBEDDING_MODEL`, toggling `OLLAMA_EMBEDDING_PREFIXES`, or switching to Gemini changes the
+embedding space:
+
+* Each document records its space (`documents.embedding_model`), and retrieval only searches documents in the
+  active space.
+* Other papers show **Re-process** in the sidebar until they are re-embedded.
+* Changing only the **chat** model has no effect on stored vectors.
+* Local embeddings are refused when `DATABASE_URL` points at a hosted database.
+
+## Using Ollama on another machine (SSH tunnel)
+
+If a GPU server runs Ollama on its own `127.0.0.1:11434`, forward it to a local port, then point the app at that
+port.
+
+1. Start the tunnel and check it:
+
+   ```bash
+   # macOS: Docker Desktop / OrbStack reach host loopback via host.docker.internal
+   ssh -N -L 127.0.0.1:11435:127.0.0.1:11434 <gpu-host>
+   # Linux: bind the Docker bridge address so containers can reach it (not the whole LAN)
+   ssh -N -L 172.17.0.1:11435:127.0.0.1:11434 <gpu-host>
+
+   curl -s http://127.0.0.1:11435/api/tags   # lists the remote models (use 172.17.0.1 on Linux)
+   ```
+
+2. In `.env.local`, set `OLLAMA_BASE_URL=http://host.docker.internal:11435`, then run `docker compose up -d`.
+3. Keep `OLLAMA_EMBEDDING_MODEL` the same as before (e.g. `nomic-embed-text` on both machines) to keep existing
+   papers searchable. A different embedding model on the server is a different space, and papers must be
+   re-processed.
+
+**Shared GPUs.** Check headroom before loading a model:
+
 ```bash
-uv venv --python 3.11 local_inference/.venv
-uv pip sync --python local_inference/.venv/bin/python local_inference/requirements.txt
-```
-`requirements.txt` is the uv-compiled lock of api + worker deps (+ `sqlalchemy<2.1`, see
-docs/failure-analysis.md F-9). No torch/CUDA: the Mac only speaks HTTP to Ollama.
-
-## Tunnel (only this task's own process)
-```bash
-SOCK="$HOME/.ssh/documind-ollama-tunnel.sock"
-# start: local 127.0.0.1:11435 -> lab 127.0.0.1:11434 (Ollama stays bound to loopback on the server)
-ssh -o ExitOnForwardFailure=yes -M -S "$SOCK" -f -N -L 127.0.0.1:11435:127.0.0.1:11434 <lab-host>
-ssh -S "$SOCK" -O check <lab-host>     # status
-ssh -S "$SOCK" -O exit  <lab-host>     # stop — closes only this control socket's tunnel
-```
-Port 11435 avoids clashing with any Ollama on the Mac. The control socket identifies the tunnel
-unambiguously, so stopping it never touches other SSH sessions.
-
-## Configuration
-Copy the template for the machine (`env.example` → `.env.lab`, `env.mac.example` → `.env.mac`) and
-export it. `INFERENCE_PROVIDER=ollama` requires `DATABASE_URL` on localhost (embedding-space guard).
-
-## Checks (cheapest first)
-```bash
-set -a; source local_inference/.env.lab; set +a     # or .env.mac on the Mac
-PY=local_inference/.venv/bin/python
-$PY local_inference/check.py              # version + model metadata — loads nothing
-$PY local_inference/check.py --embed      # loads nomic-embed-text (~0.3 GB VRAM)
-$PY local_inference/check.py --generate   # loads qwen3:14b (Q4_K_M ≈ 9.3 GB weights + KV cache)
-$PY local_inference/check.py --rag        # synthetic 3-doc ingest/retrieve/answer in LOCAL_INFERENCE_DATABASE_URL
-```
-Before any inference stage, check the shared GPU (read-only):
-```bash
-ssh <lab-host> 'nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu,temperature.gpu --format=csv'
-```
-Proceed only with enough free VRAM for the model (≈ 11 GB for qwen3:14b at num_ctx 8192) and a
-GPU that is not near its thermal limit. Otherwise Ollama offloads layers to CPU and competes with
-other users' jobs.
-
-Isolated database for `--rag` (separate from the Gemini evaluation DB on 5434):
-```bash
-docker run -d --name documind-local-ollama-db -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=documind_local_ollama -p 127.0.0.1:5436:5432 pgvector/pgvector:pg16
+ssh <gpu-host> 'nvidia-smi --query-gpu=memory.free,utilization.gpu,temperature.gpu --format=csv'
 ```
 
-## Model download (approved, done 2026-10-15)
-`ollama pull qwen3:14b` with the existing system Ollama (0.20.3, unchanged service/config/store path):
-digest `bdbd181c33f2…`, 9,276,198,565 bytes, sha256 verified by Ollama. Disk 106 → 97 GB free.
-Verified metadata: 14.77B params, Q4_K_M, 40 layers, 40 query / 8 KV heads × 128, context 40,960,
-capabilities completion/tools/thinking. `nomic-embed-text`: 137M, F16, 768-d, context 2,048.
+`qwen3:14b` at `num_ctx` 8192 needs ~11 GB free. On a busy GPU, Ollama offloads layers to the CPU and competes
+with other users' jobs. `OLLAMA_KEEP_ALIVE=2m` frees VRAM soon after use.
 
-## Blocked step
-Inference stages (`--embed`, `--generate`, `--rag`) — deferred while the GPU is saturated
-(14:37 IST: 19.0/24.6 GB used, 100 % utilization, 86 °C). Run them when ≥ 12 GB VRAM is free,
-utilization ≤ 80 % and temperature ≤ 80 °C.
+## Diagnostics without Docker: `check.py`
+
+`check.py` runs staged checks against the application's own provider code, cheapest first:
+
+```bash
+python3.11 -m venv local_inference/.venv
+local_inference/.venv/bin/pip install -r local_inference/requirements.txt
+cp local_inference/env.mac.example local_inference/.env.mac          # git-ignored; edit if needed
+set -a; source local_inference/.env.mac; set +a
+local_inference/.venv/bin/python local_inference/check.py            # server version + model metadata (loads nothing)
+local_inference/.venv/bin/python local_inference/check.py --embed    # one embedding
+local_inference/.venv/bin/python local_inference/check.py --generate # one short generation
+local_inference/.venv/bin/python local_inference/check.py --rag      # synthetic ingest → retrieve → answer
+```
+
+`--rag` needs an isolated pgvector database:
+
+```bash
+docker run -d --name researchlens-check-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=documind_local_ollama \
+  -p 127.0.0.1:5436:5432 pgvector/pgvector:pg16
+```
+
+`env.example` is the same template for a remote GPU reached through a tunnel on port 11435.
+
+## Downloading models behind a restrictive proxy
+
+`ollama pull` opens direct connections to the model CDN. On networks that only allow traffic through an HTTP
+proxy, [`fetch_model_via_proxy.sh`](fetch_model_via_proxy.sh) downloads the registry blobs with `curl` through
+the proxy, checks each sha256, and writes them into `~/.ollama/models` (for example
+`./fetch_model_via_proxy.sh qwen3 8b`).
+
+## Common errors
+
+| Error | Fix |
+| --- | --- |
+| `Ollama embedding failed … ConnectError` | Ollama is not running or not reachable at `OLLAMA_BASE_URL`. From containers, use `host.docker.internal`; on Linux, also run Ollama with `OLLAMA_HOST=0.0.0.0`. |
+| `model "…" not found` | Run `ollama pull <model>`. `/health` lists the missing models. |
+| `OLLAMA_CHAT_MODEL is required` | Set it (`qwen3:8b`); there is no default, so a machine never loads an unintended model. |
+| `requires a local DATABASE_URL` | Local embeddings were pointed at a hosted database; use the local Supabase database. |
+| Answers time out | The first call loads the model; raise `OLLAMA_READ_TIMEOUT_S`, or check memory pressure. |

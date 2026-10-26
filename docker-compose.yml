@@ -1,54 +1,62 @@
-version: '3.8'
+# ResearchLens — local stack: API + Celery worker + Redis.
+#
+# Runs next to two things on the host (see README "Quick start"):
+#   * the local Supabase stack (`supabase start`): Postgres + pgvector :54322, auth/storage API :54321
+#   * Ollama (`ollama serve`) :11434 — native, so it can use the Mac/Linux GPU
+# Containers reach both through host.docker.internal. Configuration comes from .env.local, which
+# scripts/setup_local_env.sh generates from `supabase status` (never commit it).
+#
+#   docker compose up -d --build      # start
+#   docker compose logs -f api worker # follow logs
+#   docker compose down               # stop (add -v to also drop the Redis volume)
 
-# Local development stack. Stateful services (Postgres, Redis) are NOT run
-# locally anymore — point DATABASE_URL and REDIS_URL at the managed free tiers
-# (Supabase Postgres + pgvector, Upstash Redis). See .env.example.
+name: researchlens
 
 services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis_data:/data
+
   api:
     build: ./api
-    container_name: rag_api
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./api:/app
-      - shared_data:/shared
+    env_file: .env.local
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - CHAT_MODEL=${CHAT_MODEL:-gemini-3.6-flash}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini-embedding-2}
-      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-*}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Linux; Docker Desktop/OrbStack provide it already
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
 
   worker:
     build: ./worker
-    container_name: rag_worker
-    volumes:
-      - ./worker:/app
-      - shared_data:/shared
+    command: ["celery", "-A", "celery_app", "worker", "--pool=solo", "--loglevel=info"]
+    env_file: .env.local
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini-embedding-2}
-
-  ui:
-    build: ./ui
-    container_name: rag_ui
-    ports:
-      - "8501:8501"
-      - "80:8501"
-    volumes:
-      - ./ui:/app
-    environment:
-      - API_URL=http://api:8000
+      REDIS_URL: redis://redis:6379/0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      - api
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy   # the API creates the schema on first start
+    restart: unless-stopped
 
 volumes:
-  shared_data:
+  redis_data:

@@ -80,9 +80,9 @@ export default function LoginView() {
     <main className="flex min-h-dvh items-center justify-center bg-md-surface p-4">
       <Card className="w-full max-w-[26rem] p-6 sm:p-9">
         <header className="mb-7 text-center">
-          <h1 className="t-headline-m">DocuMind</h1>
+          <h1 className="t-headline-m">ResearchLens</h1>
           <p className="t-body-m mt-1 text-md-on-surface-variant">
-            Chat with your documents.
+            Research Paper Analyst — cited answers, comparisons and gaps across your papers.
           </p>
         </header>
 
@@ -176,7 +176,7 @@ export default function LoginView() {
           </Button>
         </form>
 
-        {isAuthTab && (
+        {isAuthTab && GOOGLE_AUTH && (
           <>
             <div className="my-6 flex items-center gap-3 t-label-m text-md-on-surface-variant">
               <span className="h-px flex-1 bg-md-outline-variant" />
@@ -209,6 +209,10 @@ export default function LoginView() {
     </main>
   );
 }
+
+/** Google sign-in needs an OAuth client configured in Supabase; the local stack has none, so the button is
+ *  shown only when NEXT_PUBLIC_ENABLE_GOOGLE_AUTH=true. */
+const GOOGLE_AUTH = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === "true";
 
 function GoogleMark() {
   return (

@@ -11,7 +11,7 @@ export default function Home() {
   if (!ready) {
     return (
       <div className="flex h-dvh items-center justify-center bg-md-surface text-md-on-surface-variant">
-        <Spinner size={28} label="Loading DocuMind" />
+        <Spinner size={28} label="Loading ResearchLens" />
       </div>
     );
   }

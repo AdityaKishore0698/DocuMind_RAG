@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The route indicator overlaps the sidebar's account actions; compile/runtime errors are still shown.
+  devIndicators: false,
 };
 
 export default nextConfig;
