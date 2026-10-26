@@ -31,7 +31,7 @@ import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from importlib import metadata as importlib_metadata
-from typing import Callable
+from typing import Callable, Optional
 
 import baseline_a
 import metrics as M
@@ -65,6 +65,8 @@ class System:
     retrieval: str = "vector"         # "vector" (the system's SQL) or "hybrid_bm25" (hybrid.py)
     mode: str = "oneshot"             # "oneshot" (retrieve → prompt → answer) or "graph" (agentic.py)
     corpus_system: str = ""           # read chunks ingested by another system (same embedding space)
+    # chunk per page instead of over the concatenated text (receives the preprocessed per-page texts)
+    split_pages: Optional[Callable[[list[str]], list[str]]] = None
 
     @property
     def corpus(self) -> str:
@@ -135,6 +137,41 @@ SYSTEMS["CLV"] = replace(
     deviations=_L.deviations + ("retrieval: vector", "orchestration: agentic.py graph (≤3 subqueries, ≤2 "
                                 "retrieval rounds); synthesis prompt asks for [S#] citations with source filenames"))
 # "B"/"C" on Gemini follow once the Gemini quota allows comparable runs.
+
+
+def _application_chunker():
+    """The application's page/section-aware chunker (worker/ingest.py), loaded from the repository."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "worker" / "ingest.py"
+    spec = importlib.util.spec_from_file_location("documind_worker_ingest", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses resolve their module by name
+    spec.loader.exec_module(module)
+    return module
+
+
+def split_pages_application(page_texts: list[str]) -> list[str]:
+    ingest = _application_chunker()
+    pages = [ingest.Page(i, t) for i, t in enumerate(page_texts, start=1)]
+    return [c.content for c in ingest.chunk_pages(pages)]
+
+
+# Phase 2 ingestion check: System L with the application's page/section-aware chunking (same 1000/100
+# splitter applied within page and section boundaries). Models, retrieval SQL, prompt and top-k are L's.
+SYSTEMS["PL"] = replace(
+    _L, name="PL", split_pages=split_pages_application,
+    description="System L with the application's page/section-aware chunking (worker/ingest.py)",
+    deviations=_L.deviations + ("chunking: worker/ingest.py chunk_pages — 1000/100 splitter within page and "
+                                "section boundaries (no chunk spans two pages)",))
+
+
+def system_chunks(system: System, text: str, page_texts: list[str]) -> list[str]:
+    """`page_texts` are the raw per-page texts; empty pages are dropped as in extract_text."""
+    if system.split_pages:
+        return system.split_pages([system.preprocess(t) for t in page_texts if t])
+    return system.split_text(text)
 
 TRACKED_PACKAGES = ("PyPDF2", "langchain-text-splitters", "langchain-core", "google-genai",
                     "psycopg2-binary", "pgvector", "numpy", "httpx")
@@ -297,8 +334,9 @@ def cmd_estimate(args) -> int:
         if not paper.pages_path.exists():
             log.error("%s: run `extract` first", paper.id)
             return 1
-        text, _ = concat_with_spans(load_pages(paper), system.preprocess)
-        chunks = system.split_text(text)
+        page_list = load_pages(paper)
+        text, _ = concat_with_spans(page_list, system.preprocess)
+        chunks = system_chunks(system, text, page_list)
         chars = sum(len(c) for c in chunks)
         total_chunks += len(chunks)
         total_chars += chars
@@ -378,10 +416,11 @@ def cmd_ingest(args) -> int:
             data = paper.pdf_path.read_bytes()
             raw_text = system.extract_text(data, paper.filename)           # frozen production extraction
             text = system.preprocess(raw_text)                             # evaluation-only deviation
-            page_text, spans = concat_with_spans(page_texts_from_pdf(data), system.preprocess)
+            raw_pages = page_texts_from_pdf(data)
+            page_text, spans = concat_with_spans(raw_pages, system.preprocess)
             if page_text != text:
                 raise RuntimeError(f"{paper.id}: provenance text differs from extract_text output")
-            chunks = system.split_text(text)
+            chunks = system_chunks(system, text, raw_pages)
             removed = preprocess.nul_count(raw_text)
             if removed:
                 log.info("%-18s preprocessing removed %d NUL character(s)", paper.id, removed)
